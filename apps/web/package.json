@@ -1,0 +1,17 @@
+{
+  "name": "@sme-studio/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Next.js app - configure in E1-S2'",
+    "build": "echo 'Next.js app - configure in E1-S2'",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "echo 'No tests configured yet'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@sme-studio/eslint-config": "workspace:*",
+    "@sme-studio/typescript-config": "workspace:*",
+    "typescript": "^5.3.0"
+  }
+}
