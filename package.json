@@ -15,7 +15,12 @@
     "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:generate": "pnpm --filter @sme-studio/db db:generate",
+    "db:migrate": "pnpm --filter @sme-studio/db db:migrate",
+    "db:push": "pnpm --filter @sme-studio/db db:push",
+    "db:seed": "pnpm --filter @sme-studio/db db:seed",
+    "db:studio": "pnpm --filter @sme-studio/db db:studio"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

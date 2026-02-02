@@ -1,0 +1,3 @@
+# This directory contains Drizzle ORM migrations
+# Run `pnpm db:generate` to generate migrations from schema changes
+# Run `pnpm db:migrate` to apply migrations to the database
