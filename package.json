@@ -20,7 +20,10 @@
     "db:migrate": "pnpm --filter @sme-studio/db db:migrate",
     "db:push": "pnpm --filter @sme-studio/db db:push",
     "db:seed": "pnpm --filter @sme-studio/db db:seed",
-    "db:studio": "pnpm --filter @sme-studio/db db:studio"
+    "db:studio": "pnpm --filter @sme-studio/db db:studio",
+    "workers:dev": "pnpm --filter @sme-studio/workers start:dev",
+    "workers:start": "pnpm --filter @sme-studio/workers start",
+    "workers:test": "pnpm --filter @sme-studio/workers test:job"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
