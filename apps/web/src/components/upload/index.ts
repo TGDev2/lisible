@@ -5,3 +5,6 @@ export type {
   DropZoneError,
   AcceptedFile,
 } from "./DropZone";
+
+export { ProgressBar } from "./ProgressBar";
+export type { ProgressBarProps } from "./ProgressBar";
