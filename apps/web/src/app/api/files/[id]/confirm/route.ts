@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb, files, eq, and } from "@sme-studio/db";
+import { getDb, files, jobs, eq, and } from "@sme-studio/db";
+import { enqueueSTTJob, enqueueSMEJob } from "@/lib/queue";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -134,12 +135,45 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // TODO: E3-S4 - Enqueue job for processing (STT or SME)
-    // This will be implemented in the next story:
-    // - If video/audio: enqueue STT job
-    // - If srt/vtt: enqueue SME job
+    // 10. Enqueue job for processing and create job record
+    const queueName = nextStatus === "processing_stt" ? "stt" : "sme";
+    const jobPayload = {
+      fileId: file.id,
+      userId,
+      storageKey: file.storageKey!,
+    };
 
-    // 10. Return success response
+    try {
+      // Create job record in database for tracking
+      await db.insert(jobs).values({
+        queueName,
+        fileId: file.id,
+        userId,
+        status: "pending",
+        payload: jobPayload,
+      });
+
+      // Enqueue the appropriate job
+      if (nextStatus === "processing_stt") {
+        await enqueueSTTJob(jobPayload);
+      } else {
+        await enqueueSMEJob(jobPayload);
+      }
+    } catch (jobError) {
+      console.error("Error enqueueing job:", jobError);
+      // Revert file status on queue failure
+      await db
+        .update(files)
+        .set({ status: "pending", errorMessage: "Échec de la mise en queue" })
+        .where(eq(files.id, fileId));
+
+      return NextResponse.json(
+        { error: "Erreur lors de la mise en queue du traitement" },
+        { status: 500 }
+      );
+    }
+
+    // 11. Return success response
     return NextResponse.json(
       {
         message: "Upload confirmé",

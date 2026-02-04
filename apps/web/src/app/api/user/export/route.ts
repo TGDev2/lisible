@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const userId = session.user.id;
     const db = getDb();
 
-    // E2-S6.2: Collect data from all tables
+    // Collect data from all tables
 
     // 1. User account data
     const [userData] = await db
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // E2-S6.3: Generate structured JSON
+    // Generate structured JSON
     const exportData = {
       metadata: {
         exportedAt: new Date().toISOString(),
@@ -204,10 +204,10 @@ export async function GET(request: NextRequest) {
       transactions: [],
     };
 
-    // E2-S6.3: Generate JSON string
+    // Generate JSON string
     const exportJson = JSON.stringify(exportData, null, 2);
 
-    // E2-S6.4: Upload to S3 with 24h expiration key
+    // Upload to S3 with 24h expiration key
     const timestamp = Date.now();
     const storageKey = `exports/${userId}/${timestamp}.json`;
 
@@ -219,12 +219,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // E2-S6.5: Generate signed URL with 24h expiration
+    // Generate signed URL with 24h expiration
     const downloadUrl = await getSignedUrl(storageKey, {
       expiresIn: EXPORT_URL_EXPIRATION,
     });
 
-    // E2-S6.6: Log to audit_logs
+    // Log to audit_logs
     const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
                       request.headers.get("x-real-ip") ||
                       null;

@@ -110,7 +110,6 @@ async function processExpiredFiles(batchSize: number): Promise<number> {
 
 /**
  * Process pending user deletions - delete after 72h grace period
- * This implements E2-S7.6 and E2-S7.7
  */
 async function processPendingDeletions(batchSize: number): Promise<number> {
   const db = getDb();
@@ -142,7 +141,7 @@ async function processPendingDeletions(batchSize: number): Promise<number> {
     try {
       console.log(`[CLEANUP] Processing deletion for user ${user.id}`);
 
-      // 1. Cancel Stripe subscription if exists (E2-S7.7)
+      // 1. Cancel Stripe subscription if exists
       if (user.stripeSubscriptionId) {
         try {
           const cancelled = await cancelSubscription(user.stripeSubscriptionId);
