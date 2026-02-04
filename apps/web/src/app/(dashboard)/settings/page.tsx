@@ -39,6 +39,13 @@ type FieldErrors = {
   confirmNewPassword?: string[];
 };
 
+type ExportState = {
+  isExporting: boolean;
+  downloadUrl: string | null;
+  expiresAt: string | null;
+  error: string | null;
+};
+
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -49,6 +56,12 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [exportState, setExportState] = useState<ExportState>({
+    isExporting: false,
+    downloadUrl: null,
+    expiresAt: null,
+    error: null,
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -126,6 +139,44 @@ export default function SettingsPage() {
       setPasswordError("Une erreur est survenue. Veuillez reessayer.");
     } finally {
       setIsChangingPassword(false);
+    }
+  }
+
+  async function handleExportData() {
+    setExportState({
+      isExporting: true,
+      downloadUrl: null,
+      expiresAt: null,
+      error: null,
+    });
+
+    try {
+      const response = await fetch("/api/user/export");
+      const result = await response.json();
+
+      if (!response.ok) {
+        setExportState({
+          isExporting: false,
+          downloadUrl: null,
+          expiresAt: null,
+          error: result.message || "Une erreur est survenue lors de l'export",
+        });
+        return;
+      }
+
+      setExportState({
+        isExporting: false,
+        downloadUrl: result.downloadUrl,
+        expiresAt: result.expiresAt,
+        error: null,
+      });
+    } catch {
+      setExportState({
+        isExporting: false,
+        downloadUrl: null,
+        expiresAt: null,
+        error: "Une erreur est survenue. Veuillez reessayer.",
+      });
     }
   }
 
@@ -315,16 +366,44 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {exportState.error && (
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+              {exportState.error}
+            </div>
+          )}
+          {exportState.downloadUrl && (
+            <div className="rounded-md bg-green-500/15 p-4 space-y-2">
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                Export genere avec succes !
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-400">
+                Le lien est valide pendant 24 heures.
+              </p>
+              <a
+                href={exportState.downloadUrl}
+                download="sme-studio-export.json"
+                className="inline-block mt-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+              >
+                Telecharger le fichier JSON
+              </a>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button variant="outline" disabled>
-              Exporter mes donnees
+            <Button
+              variant="outline"
+              onClick={handleExportData}
+              disabled={exportState.isExporting}
+            >
+              {exportState.isExporting
+                ? "Generation en cours..."
+                : "Exporter mes donnees"}
             </Button>
             <Button variant="destructive" disabled>
               Supprimer mon compte
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Ces fonctionnalites seront bientot disponibles.
+            La suppression du compte sera bientot disponible.
           </p>
         </CardContent>
       </Card>
