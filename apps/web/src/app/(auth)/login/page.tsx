@@ -35,12 +35,18 @@ function LoginForm() {
   // Get callback URL from query params (for redirect after login)
   const callbackUrl = searchParams.get("callbackUrl") || "/projects";
   const registered = searchParams.get("registered");
+  const reset = searchParams.get("reset");
   const authError = searchParams.get("error");
 
   useEffect(() => {
     // Show success message after registration
     if (registered === "true") {
       setSuccessMessage("Compte créé avec succès. Vous pouvez maintenant vous connecter.");
+    }
+
+    // Show success message after password reset
+    if (reset === "success") {
+      setSuccessMessage("Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.");
     }
 
     // Handle NextAuth errors
@@ -56,7 +62,7 @@ function LoginForm() {
           setError("Une erreur est survenue lors de la connexion");
       }
     }
-  }, [registered, authError]);
+  }, [registered, reset, authError]);
 
   // Countdown timer for rate limiting
   useEffect(() => {

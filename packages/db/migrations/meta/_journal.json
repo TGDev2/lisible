@@ -8,6 +8,13 @@
       "when": 1770072729358,
       "tag": "0000_flaky_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770160000000,
+      "tag": "0001_password_reset_tokens",
+      "breakpoints": true
     }
   ]
 }
