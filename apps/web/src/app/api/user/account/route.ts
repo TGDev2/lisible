@@ -19,6 +19,7 @@ export async function GET() {
         email: users.email,
         createdAt: users.createdAt,
         plan: users.plan,
+        deletionRequestedAt: users.deletionRequestedAt,
       })
       .from(users)
       .where(eq(users.id, session.user.id))
@@ -35,6 +36,7 @@ export async function GET() {
       email: user.email,
       createdAt: user.createdAt?.toISOString(),
       plan: user.plan || "free",
+      deletionRequestedAt: user.deletionRequestedAt?.toISOString() || null,
     });
   } catch (error) {
     console.error("Error fetching account info:", error);

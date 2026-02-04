@@ -77,3 +77,13 @@ export const changePasswordSchema = z
   });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const deleteAccountSchema = z.object({
+  confirmationText: z
+    .string()
+    .refine((val) => val === "SUPPRIMER", {
+      message: "Veuillez saisir SUPPRIMER pour confirmer",
+    }),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
