@@ -316,13 +316,19 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
   );
 
   /**
-   * Cancel ongoing upload
+   * Cancel ongoing upload and cleanup server-side
    */
-  const cancel = useCallback(() => {
+  const cancel = useCallback(async () => {
+    // 1. Abort the XHR request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+
+    // 2. Get current fileId before resetting state
+    const currentFileId = state.fileId;
+
+    // 3. Reset local state immediately for responsive UI
     savedProgressRef.current = null;
     setState({
       status: "cancelled",
@@ -331,7 +337,19 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
       fileId: null,
       attempt: 0,
     });
-  }, []);
+
+    // 4. Call API to cleanup server-side (S3 + DB)
+    if (currentFileId) {
+      try {
+        await fetch(`/api/files/${currentFileId}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        // Log error but don't fail - upload is already cancelled client-side
+        console.warn("Failed to cleanup cancelled upload:", error);
+      }
+    }
+  }, [state.fileId]);
 
   /**
    * Reset state to allow new upload

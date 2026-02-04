@@ -54,10 +54,18 @@ export interface DropZoneError {
   message: string;
 }
 
+export interface UploadProgressInfo {
+  percent: number;
+  loaded: number;
+  total: number;
+}
+
 export interface DropZoneProps {
   onFileAccepted: (file: AcceptedFile) => void;
   onError?: (error: DropZoneError) => void;
+  onCancel?: () => void;
   state?: DropZoneState;
+  uploadProgress?: UploadProgressInfo;
   disabled?: boolean;
   className?: string;
 }
@@ -122,7 +130,9 @@ async function validateMagicBytes(file: File): Promise<boolean> {
 export function DropZone({
   onFileAccepted,
   onError,
+  onCancel,
   state: externalState,
+  uploadProgress,
   disabled = false,
   className,
 }: DropZoneProps) {
@@ -263,9 +273,38 @@ export function DropZone({
         <input {...getInputProps()} />
 
         {currentState === "uploading" ? (
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="flex flex-col items-center gap-4 text-muted-foreground px-4">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-sm font-medium">Envoi en cours...</p>
+            <div className="flex flex-col items-center gap-2 w-full max-w-[250px]">
+              <p className="text-sm font-medium">Envoi en cours...</p>
+              {uploadProgress && (
+                <>
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress.percent}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {uploadProgress.percent}% ({formatFileSize(uploadProgress.loaded)} / {formatFileSize(uploadProgress.total)})
+                  </p>
+                </>
+              )}
+            </div>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancel();
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                aria-label="Annuler l'upload"
+              >
+                <X className="h-3 w-3" />
+                Annuler
+              </button>
+            )}
           </div>
         ) : selectedFile && !error ? (
           <div className="flex flex-col items-center gap-3 px-4">
