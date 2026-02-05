@@ -25,6 +25,28 @@ export interface SpeedCheckResult {
 }
 
 /**
+ * Result of a length check on a segment
+ */
+export interface LengthCheckResult {
+  /** Whether an alert was triggered */
+  hasAlert: boolean;
+  /** Severity of the alert (only set if hasAlert is true) */
+  severity?: AlertSeverity;
+  /** Character count details */
+  charCount: {
+    actual: number;
+    max: number;
+    exceeded: boolean;
+  };
+  /** Line count details */
+  lineCount: {
+    actual: number;
+    max: number;
+    exceeded: boolean;
+  };
+}
+
+/**
  * Re-export Segment type for convenience
  */
 export type { Segment };
