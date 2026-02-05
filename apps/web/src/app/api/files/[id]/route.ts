@@ -67,7 +67,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     // 6. Check if file can be cancelled
     // Only allow cancellation for pending, uploading, or cancelled status
     const cancellableStatuses = ["pending", "uploading", "cancelled"];
-    if (!cancellableStatuses.includes(file.status)) {
+    if (!file.status || !cancellableStatuses.includes(file.status)) {
       // If file is already processed (processing_stt, processing_sme, ready)
       // or failed, return appropriate error
       if (file.status === "ready") {
