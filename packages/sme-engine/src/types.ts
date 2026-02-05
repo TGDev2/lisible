@@ -59,6 +59,20 @@ export interface OverlapCheckResult {
 }
 
 /**
+ * Result of a duration check on a segment
+ */
+export interface DurationCheckResult {
+  /** Whether an alert was triggered */
+  hasAlert: boolean;
+  /** Severity of the alert (only set if hasAlert is true) */
+  severity?: AlertSeverity;
+  /** Actual duration in milliseconds */
+  actual: number;
+  /** Minimum required duration in milliseconds */
+  min: number;
+}
+
+/**
  * Re-export Segment type for convenience
  */
 export type { Segment };
