@@ -95,6 +95,54 @@ export interface ProperNounCheckResult {
 }
 
 /**
+ * Input alert for score calculation
+ */
+export interface AlertInput {
+  /** Rule code that generated the alert */
+  ruleCode: RuleCode;
+  /** Severity of the alert */
+  severity: AlertSeverity;
+}
+
+/**
+ * Breakdown of penalties by rule type
+ */
+export interface ScoreBreakdownByRule {
+  /** Number of alerts for this rule */
+  count: number;
+  /** Total penalty points for this rule */
+  penalty: number;
+}
+
+/**
+ * Detailed breakdown of the score calculation
+ */
+export interface ScoreBreakdown {
+  /** Total number of alerts */
+  totalAlerts: number;
+  /** Alerts by severity */
+  bySeverity: {
+    critical: number;
+    warning: number;
+    info: number;
+  };
+  /** Breakdown by rule type */
+  byRule: Record<RuleCode, ScoreBreakdownByRule>;
+  /** Total penalty points before clamping */
+  totalPenalty: number;
+}
+
+/**
+ * Result of score calculation
+ */
+export interface ScoreResult {
+  /** Final SME score (0-100) */
+  score: number;
+  /** Detailed breakdown of the calculation */
+  breakdown: ScoreBreakdown;
+}
+
+/**
  * Re-export Segment type for convenience
  */
 export type { Segment };
