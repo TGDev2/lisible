@@ -103,6 +103,7 @@ export default function SettingsPage() {
       // Clear the query param
       router.replace("/settings");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, status, router]);
 
   async function fetchAccountInfo() {
