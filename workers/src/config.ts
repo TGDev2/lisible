@@ -37,7 +37,6 @@ export const QUEUE_NAMES = {
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
 // Queue configurations with retry and backoff settings
-// Based on architecture.md section 4.3
 export const queueConfigs: Record<QueueName, QueueOptions['defaultJobOptions']> = {
   [QUEUE_NAMES.STT]: {
     attempts: 3,
@@ -78,7 +77,6 @@ export const queueConfigs: Record<QueueName, QueueOptions['defaultJobOptions']> 
 };
 
 // Worker configurations with concurrency and timeouts
-// Based on architecture.md section 4.4
 export const workerConfigs: Record<QueueName, Partial<WorkerOptions>> = {
   [QUEUE_NAMES.STT]: {
     concurrency: 2, // Limited by STT API cost
