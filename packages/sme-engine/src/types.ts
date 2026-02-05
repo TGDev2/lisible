@@ -73,6 +73,28 @@ export interface DurationCheckResult {
 }
 
 /**
+ * A detected proper noun in text
+ */
+export interface DetectedProperNoun {
+  /** The word detected as a potential proper noun */
+  word: string;
+  /** Position (character index) in the text */
+  position: number;
+}
+
+/**
+ * Result of a proper noun check on a segment
+ */
+export interface ProperNounCheckResult {
+  /** Whether an alert was triggered (proper nouns detected) */
+  hasAlert: boolean;
+  /** Severity of the alert (always 'info' for verification suggestions) */
+  severity?: AlertSeverity;
+  /** List of detected potential proper nouns */
+  detectedNouns: DetectedProperNoun[];
+}
+
+/**
  * Re-export Segment type for convenience
  */
 export type { Segment };
