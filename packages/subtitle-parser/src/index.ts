@@ -1,2 +1,23 @@
-// SRT/VTT parsing & generation - configure in E4-S1
-export {};
+/**
+ * @sme-studio/subtitle-parser
+ *
+ * Package for parsing SRT and VTT subtitle files into segments
+ */
+
+// Types
+export type { Segment, ParseResult, ParseError, ParseOptions } from './types';
+
+// Main parsing functions
+export { parseSubtitle, parseByFormat, detectFormat, validateSubtitle } from './parse';
+
+// Format-specific parsers
+export { parseSRT } from './parse-srt';
+export { parseVTT } from './parse-vtt';
+
+// Timecode utilities
+export {
+  parseSrtTimecode,
+  parseVttTimecode,
+  formatSrtTimecode,
+  formatVttTimecode,
+} from './timecode';
