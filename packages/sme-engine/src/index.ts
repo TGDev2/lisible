@@ -1,2 +1,10 @@
-// SME scoring logic - configure in E4
-export {};
+// Types
+export type {
+  Segment,
+  AlertSeverity,
+  RuleCode,
+  SpeedCheckResult,
+} from './types';
+
+// Rules
+export { checkSpeed } from './rules/speed';

@@ -11,7 +11,9 @@
     "test": "vitest run",
     "clean": "rm -rf dist"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@sme-studio/subtitle-parser": "workspace:*"
+  },
   "devDependencies": {
     "@sme-studio/eslint-config": "workspace:*",
     "@sme-studio/typescript-config": "workspace:*",

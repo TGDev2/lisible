@@ -213,6 +213,10 @@ importers:
         version: 1.6.1(@types/node@20.19.30)
 
   packages/sme-engine:
+    dependencies:
+      '@sme-studio/subtitle-parser':
+        specifier: workspace:*
+        version: link:../subtitle-parser
     devDependencies:
       '@sme-studio/eslint-config':
         specifier: workspace:*
