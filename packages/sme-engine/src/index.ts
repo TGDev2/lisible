@@ -5,8 +5,10 @@ export type {
   RuleCode,
   SpeedCheckResult,
   LengthCheckResult,
+  OverlapCheckResult,
 } from './types';
 
 // Rules
 export { checkSpeed } from './rules/speed';
 export { checkLength } from './rules/length';
+export { checkOverlap } from './rules/overlap';

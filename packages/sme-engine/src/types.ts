@@ -47,6 +47,18 @@ export interface LengthCheckResult {
 }
 
 /**
+ * Result of an overlap check between two consecutive segments
+ */
+export interface OverlapCheckResult {
+  /** Whether an overlap was detected (alert triggered) */
+  hasAlert: boolean;
+  /** Severity of the alert (only set if hasAlert is true) */
+  severity?: AlertSeverity;
+  /** Overlap duration in milliseconds (0 if no overlap) */
+  overlapMs: number;
+}
+
+/**
  * Re-export Segment type for convenience
  */
 export type { Segment };
