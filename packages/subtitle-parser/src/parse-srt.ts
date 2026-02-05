@@ -1,4 +1,4 @@
-import { Segment, ParseError, ParseOptions } from './types';
+import type { Segment, ParseError, ParseOptions } from './types';
 import { parseSrtTimecode } from './timecode';
 
 /**

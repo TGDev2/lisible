@@ -137,7 +137,7 @@ Hello world`;
       const content = `00:00:01,000 --> 00:00:04,000
 Hello world`;
 
-      const { segments, errors } = parseSRT(content, { lenient: true });
+      const { segments: _segments, errors } = parseSRT(content, { lenient: true });
 
       // Should report error but not crash
       expect(errors.length).toBeGreaterThan(0);
@@ -148,7 +148,7 @@ Hello world`;
 invalid timecode
 Hello world`;
 
-      const { segments, errors } = parseSRT(content, { lenient: true });
+      const { segments: _segments, errors } = parseSRT(content, { lenient: true });
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0].message).toContain('Invalid timecode');
@@ -178,7 +178,7 @@ Valid segment`;
 00:00:05,000 --> 00:00:08,000
 Hello`;
 
-      const { segments, errors } = parseSRT(content, { lenient: true });
+      const { segments: _segments, errors } = parseSRT(content, { lenient: true });
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors.some((e) => e.message.includes('Missing text'))).toBe(true);

@@ -203,7 +203,7 @@ Hello world`;
       const content = `00:00:01.000 --> 00:00:04.000
 Hello world`;
 
-      const { segments, errors } = parseVTT(content, { lenient: true });
+      const { segments: _segments, errors } = parseVTT(content, { lenient: true });
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0].message).toContain('WEBVTT');
@@ -225,7 +225,7 @@ Hello world`;
 invalid --> timecode
 Hello world`;
 
-      const { segments, errors } = parseVTT(content, { lenient: true });
+      const { segments: _segments, errors } = parseVTT(content, { lenient: true });
 
       expect(errors.length).toBeGreaterThan(0);
     });
@@ -239,7 +239,7 @@ more invalid
 00:00:05.000 --> 00:00:08.000
 Valid cue`;
 
-      const { segments, errors } = parseVTT(content, { lenient: true });
+      const { segments, errors: _errors } = parseVTT(content, { lenient: true });
 
       expect(segments).toHaveLength(1);
       expect(segments[0].text).toBe('Valid cue');

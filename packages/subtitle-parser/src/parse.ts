@@ -1,4 +1,4 @@
-import { ParseResult, ParseOptions, ParseError } from './types';
+import type { ParseResult, ParseOptions, ParseError } from './types';
 import { parseSRT } from './parse-srt';
 import { parseVTT } from './parse-vtt';
 
