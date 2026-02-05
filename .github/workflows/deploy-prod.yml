@@ -16,6 +16,7 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
+    environment: Production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
