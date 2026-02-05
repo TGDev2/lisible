@@ -1,6 +1,13 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || "SME Studio <noreply@smestudio.com>";
 
@@ -13,7 +20,7 @@ export async function sendPasswordResetEmail({
   to,
   resetUrl,
 }: SendPasswordResetEmailParams) {
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to,
     subject: "Réinitialisation de votre mot de passe - SME Studio",
@@ -135,7 +142,7 @@ export async function sendAccountDeletionRequestEmail({
   cancellationUrl,
   deletionDate,
 }: SendAccountDeletionRequestEmailParams) {
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to,
     subject: "Confirmation de suppression de compte - SME Studio",
@@ -269,7 +276,7 @@ interface SendAccountDeletedEmailParams {
 export async function sendAccountDeletedEmail({
   to,
 }: SendAccountDeletedEmailParams) {
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResendClient().emails.send({
     from: FROM_EMAIL,
     to,
     subject: "Votre compte a été supprimé - SME Studio",
