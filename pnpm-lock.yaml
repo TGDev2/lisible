@@ -274,6 +274,12 @@ importers:
       '@sme-studio/db':
         specifier: workspace:*
         version: link:../packages/db
+      '@sme-studio/sme-engine':
+        specifier: workspace:*
+        version: link:../packages/sme-engine
+      '@sme-studio/subtitle-parser':
+        specifier: workspace:*
+        version: link:../packages/subtitle-parser
       bullmq:
         specifier: ^5.34.0
         version: 5.67.2

@@ -1,8 +1,10 @@
 import {
   S3Client,
   DeleteObjectCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   type DeleteObjectCommandInput,
+  type GetObjectCommandInput,
 } from "@aws-sdk/client-s3";
 
 // Scaleway S3-compatible configuration (Paris fr-par)
@@ -62,6 +64,29 @@ export async function deleteObjectsByPrefix(prefix: string): Promise<number> {
   } while (continuationToken);
 
   return deletedCount;
+}
+
+/**
+ * Download a file from S3 bucket and return its content as string
+ * @param key - The object key (path) in the bucket
+ * @returns File content as UTF-8 string
+ */
+export async function downloadObject(key: string): Promise<string> {
+  const input: GetObjectCommandInput = {
+    Bucket: BUCKET,
+    Key: key,
+  };
+
+  const command = new GetObjectCommand(input);
+  const response = await s3Client.send(command);
+
+  if (!response.Body) {
+    throw new Error(`Empty response body for key: ${key}`);
+  }
+
+  // Convert stream to string
+  const content = await response.Body.transformToString("utf-8");
+  return content;
 }
 
 export { s3Client, BUCKET };
