@@ -19,6 +19,9 @@ export { STTError } from './types';
 export { WhisperProvider } from './providers/whisper';
 export type { WhisperProviderConfig } from './providers/whisper';
 
+export { DeepgramProvider } from './providers/deepgram';
+export type { DeepgramProviderConfig } from './providers/deepgram';
+
 // Mapper utilities
 export type { Segment } from './mapper';
 export { mapToSegments, mapResultToSegments } from './mapper';
