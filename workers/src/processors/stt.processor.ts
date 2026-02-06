@@ -43,6 +43,24 @@ async function updateFileStatus(
 }
 
 /**
+ * Update progress in DB (for polling)
+ * Only updates progressPercent, not status
+ */
+async function updateProgressOnly(
+  fileId: string,
+  progressPercent: number
+): Promise<void> {
+  const db = getDb();
+  await db
+    .update(files)
+    .set({
+      progressPercent,
+      updatedAt: new Date(),
+    })
+    .where(eq(files.id, fileId));
+}
+
+/**
  * STT Transcription Worker
  * Processes video/audio files through STT providers (Whisper, Deepgram)
  *
@@ -77,6 +95,7 @@ async function processSTTJob(job: Job<STTJobData>): Promise<STTJobResult> {
     console.log(`[STT] Downloading file from S3: ${storageKey}`);
     const fileBuffer = await downloadObjectAsBuffer(storageKey);
     console.log(`[STT] Downloaded ${fileBuffer.length} bytes`);
+    await updateProgressOnly(fileId, 10);
     await job.updateProgress(10);
 
     // Step 3: Get original filename for format detection
@@ -106,6 +125,7 @@ async function processSTTJob(job: Job<STTJobData>): Promise<STTJobResult> {
     );
 
     console.log(`[STT] Duration: ${durationSeconds}s, was video: ${wasVideo}`);
+    await updateProgressOnly(fileId, 30);
     await job.updateProgress(30);
 
     // Step 5: Check credits before processing
@@ -114,6 +134,9 @@ async function processSTTJob(job: Job<STTJobData>): Promise<STTJobResult> {
     // Step 6: Call STT Orchestrator
     console.log(`[STT] Starting transcription with orchestrator...`);
     const orchestrator = new STTOrchestrator();
+
+    // Track last DB update to throttle writes (every 10% or 5 seconds)
+    let lastDbProgress = 30;
 
     const sttResult = await orchestrator.transcribe(
       audioBuffer,
@@ -124,10 +147,17 @@ async function processSTTJob(job: Job<STTJobData>): Promise<STTJobResult> {
         const jobProgress = 30 + Math.round(progress.percent * 0.4);
         job.updateProgress(jobProgress).catch(() => {});
         console.log(`[STT] Transcription progress: ${progress.percent}% (${progress.stage})`);
+
+        // Update DB every 10% to support polling
+        if (jobProgress >= lastDbProgress + 10) {
+          lastDbProgress = jobProgress;
+          updateProgressOnly(fileId, jobProgress).catch(() => {});
+        }
       }
     );
 
     console.log(`[STT] Transcription complete: ${sttResult.segments.length} segments, provider: ${sttResult.provider}`);
+    await updateProgressOnly(fileId, 70);
     await job.updateProgress(70);
 
     // Step 7: Generate SRT from segments

@@ -244,6 +244,23 @@ async function bulkInsertAlerts(
 }
 
 /**
+ * Update progress in DB (for polling)
+ */
+async function updateProgress(
+  db: ReturnType<typeof getDb>,
+  fileId: string,
+  progressPercent: number
+): Promise<void> {
+  await db
+    .update(files)
+    .set({
+      progressPercent,
+      updatedAt: new Date(),
+    })
+    .where(eq(files.id, fileId));
+}
+
+/**
  * SME Analysis Worker
  * Analyzes subtitle files and calculates SME score with alerts
  */
@@ -274,6 +291,7 @@ async function processSMEJob(job: Job<SMEJobData>): Promise<SMEJobResult> {
     // Step 2: Download SRT file from S3
     console.log(`[SME] Downloading file from S3: ${storageKey}`);
     const fileContent = await downloadObject(storageKey);
+    await updateProgress(db, fileId, 15);
     await job.updateProgress(15);
 
     // Step 3: Parse with subtitle-parser
@@ -290,16 +308,19 @@ async function processSMEJob(job: Job<SMEJobData>): Promise<SMEJobResult> {
     }
 
     console.log(`[SME] Parsed ${parseResult.segments.length} segments`);
+    await updateProgress(db, fileId, 25);
     await job.updateProgress(25);
 
     // Step 4: Analyze with sme-engine (all rules)
     console.log(`[SME] Analyzing segments with SME rules`);
     const { alerts: collectedAlerts, scoreInputs } = analyzeSegments(parseResult.segments);
+    await updateProgress(db, fileId, 40);
     await job.updateProgress(40);
 
     // Step 5: Calculate score
     const scoreResult = calculateScore(scoreInputs);
     console.log(`[SME] Score calculated: ${scoreResult.score}`, scoreResult.breakdown);
+    await updateProgress(db, fileId, 50);
     await job.updateProgress(50);
 
     // Step 6: Delete existing segments and alerts for this file (for re-analysis)
@@ -310,11 +331,13 @@ async function processSMEJob(job: Job<SMEJobData>): Promise<SMEJobResult> {
     // Step 7: Bulk insert segments
     console.log(`[SME] Inserting ${parseResult.segments.length} segments`);
     const segmentIdMap = await bulkInsertSegments(db, fileId, parseResult.segments);
+    await updateProgress(db, fileId, 75);
     await job.updateProgress(75);
 
     // Step 8: Bulk insert alerts
     console.log(`[SME] Inserting ${collectedAlerts.length} alerts`);
     await bulkInsertAlerts(db, fileId, collectedAlerts, segmentIdMap);
+    await updateProgress(db, fileId, 90);
     await job.updateProgress(90);
 
     // Step 9: Update file with score and status=ready
