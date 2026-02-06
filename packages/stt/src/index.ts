@@ -22,6 +22,16 @@ export type { WhisperProviderConfig } from './providers/whisper';
 export { DeepgramProvider } from './providers/deepgram';
 export type { DeepgramProviderConfig } from './providers/deepgram';
 
+// Orchestrator
+export { STTOrchestrator } from './orchestrator';
+export type {
+  STTOrchestratorConfig,
+  STTMetrics,
+  ProviderMetrics,
+  TranscriptionLogEntry,
+  STTLogger,
+} from './orchestrator';
+
 // Mapper utilities
 export type { Segment } from './mapper';
 export { mapToSegments, mapResultToSegments } from './mapper';
