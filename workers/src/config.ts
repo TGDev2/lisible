@@ -1,4 +1,4 @@
-import { ConnectionOptions, QueueOptions, WorkerOptions } from 'bullmq';
+import type { ConnectionOptions, QueueOptions, WorkerOptions } from 'bullmq';
 import dotenv from 'dotenv';
 
 // Load environment variables

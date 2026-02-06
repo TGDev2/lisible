@@ -11,9 +11,9 @@
  *
  * DoD: Job test enqueued + processed with logs
  */
-import { Job, Worker, QueueEvents } from 'bullmq';
+import { type Job, Worker, QueueEvents } from 'bullmq';
 import { redisConnection, QUEUE_NAMES } from './config';
-import { smeQueue, SMEJobData, SMEJobResult } from './queues';
+import { smeQueue, type SMEJobData, type SMEJobResult } from './queues';
 
 async function runTest(): Promise<void> {
   console.log('='.repeat(50));

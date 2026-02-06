@@ -10,14 +10,14 @@
  */
 
 import {
-  STTProvider,
-  STTOptions,
-  STTResult,
-  STTProgress,
+  type STTProvider,
+  type STTOptions,
+  type STTResult,
+  type STTProgress,
   STTError,
 } from './types';
-import { WhisperProvider, WhisperProviderConfig } from './providers/whisper';
-import { DeepgramProvider, DeepgramProviderConfig } from './providers/deepgram';
+import { WhisperProvider, type WhisperProviderConfig } from './providers/whisper';
+import { DeepgramProvider, type DeepgramProviderConfig } from './providers/deepgram';
 
 /**
  * Metrics for a single provider

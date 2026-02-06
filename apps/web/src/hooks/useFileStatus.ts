@@ -212,6 +212,7 @@ export function useFileStatus(options: UseFileStatusOptions): UseFileStatusRetur
         intervalRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, fileId, isPolling, pollingInterval, fetchStatus, status?.stage]);
 
   // Reset state when fileId changes

@@ -1,4 +1,4 @@
-import { Job, Worker } from 'bullmq';
+import { type Job, Worker } from 'bullmq';
 import { redisConnection, QUEUE_NAMES, workerConfigs } from '../config';
 import type { PDFJobData, PDFJobResult } from '../queues';
 

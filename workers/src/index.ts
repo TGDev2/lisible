@@ -1,4 +1,4 @@
-import { Worker } from 'bullmq';
+import type { Worker } from 'bullmq';
 import { QUEUE_NAMES } from './config';
 import { closeAllQueues } from './queues';
 import {

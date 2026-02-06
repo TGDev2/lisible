@@ -7,11 +7,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   STTOrchestrator,
-  STTOrchestratorConfig,
-  TranscriptionLogEntry,
-  STTMetrics,
+  type STTOrchestratorConfig,
+  type TranscriptionLogEntry,
+  type STTMetrics,
 } from '../orchestrator';
-import { STTProvider, STTResult, STTOptions, STTProgress, STTError } from '../types';
+import { STTError, type STTProvider, type STTResult, type STTOptions, type STTProgress } from '../types';
 
 /**
  * Helper to safely get provider metrics

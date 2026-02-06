@@ -4,15 +4,15 @@
  */
 
 import OpenAI from 'openai';
-import { Uploadable } from 'openai/uploads';
+import type { Uploadable } from 'openai/uploads';
 import {
-  STTProvider,
-  STTOptions,
-  STTResult,
-  STTProgress,
-  STTSegment,
+  type STTProvider,
+  type STTOptions,
+  type STTResult,
+  type STTProgress,
+  type STTSegment,
   STTError,
-  STTErrorCode,
+  type STTErrorCode,
 } from '../types';
 
 /**

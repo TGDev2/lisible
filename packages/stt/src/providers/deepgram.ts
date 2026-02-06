@@ -5,13 +5,13 @@
  */
 
 import {
-  STTProvider,
-  STTOptions,
-  STTResult,
-  STTProgress,
-  STTSegment,
+  type STTProvider,
+  type STTOptions,
+  type STTResult,
+  type STTProgress,
+  type STTSegment,
   STTError,
-  STTErrorCode,
+  type STTErrorCode,
 } from '../types';
 
 /**
