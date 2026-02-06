@@ -2,9 +2,11 @@ import {
   S3Client,
   DeleteObjectCommand,
   GetObjectCommand,
+  PutObjectCommand,
   ListObjectsV2Command,
   type DeleteObjectCommandInput,
   type GetObjectCommandInput,
+  type PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
 
 // Scaleway S3-compatible configuration (Paris fr-par)
@@ -87,6 +89,51 @@ export async function downloadObject(key: string): Promise<string> {
   // Convert stream to string
   const content = await response.Body.transformToString("utf-8");
   return content;
+}
+
+/**
+ * Download a file from S3 bucket and return its content as Buffer
+ * @param key - The object key (path) in the bucket
+ * @returns File content as Buffer
+ */
+export async function downloadObjectAsBuffer(key: string): Promise<Buffer> {
+  const input: GetObjectCommandInput = {
+    Bucket: BUCKET,
+    Key: key,
+  };
+
+  const command = new GetObjectCommand(input);
+  const response = await s3Client.send(command);
+
+  if (!response.Body) {
+    throw new Error(`Empty response body for key: ${key}`);
+  }
+
+  // Convert stream to Buffer
+  const byteArray = await response.Body.transformToByteArray();
+  return Buffer.from(byteArray);
+}
+
+/**
+ * Upload a file to S3 bucket
+ * @param key - The object key (path) in the bucket
+ * @param content - File content as string or Buffer
+ * @param contentType - MIME type of the file
+ */
+export async function uploadObject(
+  key: string,
+  content: string | Buffer,
+  contentType: string = "application/octet-stream"
+): Promise<void> {
+  const input: PutObjectCommandInput = {
+    Bucket: BUCKET,
+    Key: key,
+    Body: content,
+    ContentType: contentType,
+  };
+
+  const command = new PutObjectCommand(input);
+  await s3Client.send(command);
 }
 
 export { s3Client, BUCKET };

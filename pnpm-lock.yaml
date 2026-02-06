@@ -284,6 +284,9 @@ importers:
       '@sme-studio/sme-engine':
         specifier: workspace:*
         version: link:../packages/sme-engine
+      '@sme-studio/stt':
+        specifier: workspace:*
+        version: link:../packages/stt
       '@sme-studio/subtitle-parser':
         specifier: workspace:*
         version: link:../packages/subtitle-parser

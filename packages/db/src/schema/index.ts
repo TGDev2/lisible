@@ -7,3 +7,4 @@ export * from "./alerts";
 export * from "./password-reset-tokens";
 export * from "./audit-logs";
 export * from "./jobs";
+export * from "./credit-transactions";

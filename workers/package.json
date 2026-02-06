@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@sme-studio/db": "workspace:*",
+    "@sme-studio/stt": "workspace:*",
     "@sme-studio/subtitle-parser": "workspace:*",
     "@sme-studio/sme-engine": "workspace:*",
     "@aws-sdk/client-s3": "^3.980.0",
