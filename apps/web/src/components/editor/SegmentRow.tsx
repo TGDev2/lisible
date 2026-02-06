@@ -1,8 +1,9 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { AlertCircle, AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
+import { useSegmentMutation } from "@/hooks";
 import type { SegmentWithAlerts, AlertSeverity } from "@/stores";
 
 interface SegmentRowProps {
@@ -87,7 +88,71 @@ function AlertIndicator({ severity }: { severity: AlertSeverity | null }) {
 }
 
 /**
- * SegmentRow component - displays a single segment in the list
+ * Auto-resizing textarea component
+ */
+interface AutoResizeTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onBlur: () => void;
+  disabled?: boolean;
+  className?: string;
+}
+
+const AutoResizeTextarea = memo(function AutoResizeTextarea({
+  value,
+  onChange,
+  onKeyDown,
+  onBlur,
+  disabled,
+  className,
+}: AutoResizeTextareaProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize effect
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = "auto";
+      // Set height to scrollHeight to expand
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [value]);
+
+  // Focus on mount
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.focus();
+      // Place cursor at end
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+  }, []);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      onBlur={onBlur}
+      disabled={disabled}
+      rows={1}
+      className={cn(
+        "w-full resize-none overflow-hidden bg-background border border-primary rounded px-2 py-1",
+        "text-sm leading-relaxed break-words",
+        "focus:outline-none focus:ring-2 focus:ring-ring",
+        "disabled:opacity-50 disabled:cursor-not-allowed",
+        className
+      )}
+      aria-label="Edit segment text"
+    />
+  );
+});
+
+/**
+ * SegmentRow component - displays a single segment in the list with inline editing
  */
 export const SegmentRow = memo(function SegmentRow({
   segment,
@@ -98,22 +163,134 @@ export const SegmentRow = memo(function SegmentRow({
   const severity = getHighestSeverity(segment.alerts);
   const alertCount = segment.alerts.length;
 
+  // Editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(segment.text);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  // Mutation hook
+  const { mutateSegment, rollback, isPending } = useSegmentMutation();
+
+  // Sync editedText when segment.text changes externally
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedText(segment.text);
+    }
+  }, [segment.text, isEditing]);
+
+  /**
+   * Enter edit mode
+   */
+  const enterEditMode = useCallback(() => {
+    setEditedText(segment.text);
+    setIsEditing(true);
+  }, [segment.text]);
+
+  /**
+   * Exit edit mode without saving
+   */
+  const cancelEdit = useCallback(() => {
+    setEditedText(segment.text);
+    setIsEditing(false);
+    rollback(segment.id);
+  }, [segment.text, segment.id, rollback]);
+
+  /**
+   * Save changes and exit edit mode
+   */
+  const saveEdit = useCallback(async () => {
+    const trimmedText = editedText.trim();
+
+    // Don't save if text is empty or unchanged
+    if (!trimmedText || trimmedText === segment.text) {
+      cancelEdit();
+      return;
+    }
+
+    // Optimistic update with debounce for rapid edits
+    await mutateSegment(segment.id, { text: trimmedText }, { debounceMs: 300 });
+    setIsEditing(false);
+  }, [editedText, segment.text, segment.id, mutateSegment, cancelEdit]);
+
+  /**
+   * Handle keyboard events in edit mode
+   */
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        // Enter without Shift = validate
+        e.preventDefault();
+        saveEdit();
+      } else if (e.key === "Escape") {
+        // Escape = cancel
+        e.preventDefault();
+        cancelEdit();
+      }
+      // Shift+Enter allows new line (default behavior)
+    },
+    [saveEdit, cancelEdit]
+  );
+
+  /**
+   * Handle blur - save when clicking outside
+   */
+  const handleBlur = useCallback(() => {
+    // Small delay to allow click events to process first
+    setTimeout(() => {
+      if (isEditing) {
+        saveEdit();
+      }
+    }, 100);
+  }, [isEditing, saveEdit]);
+
+  /**
+   * Handle row click
+   */
+  const handleRowClick = useCallback(
+    (e: React.MouseEvent) => {
+      // If clicking on the text area, enter edit mode
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-text-content]")) {
+        enterEditMode();
+      } else if (!isEditing) {
+        onClick?.();
+      }
+    },
+    [enterEditMode, isEditing, onClick]
+  );
+
+  /**
+   * Handle row key down
+   */
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (isEditing) return;
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick?.();
+      } else if (e.key === "Tab" && !e.shiftKey) {
+        // Tab enters edit mode
+        e.preventDefault();
+        enterEditMode();
+      }
+    },
+    [isEditing, onClick, enterEditMode]
+  );
+
   return (
     <div
+      ref={rowRef}
       role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick?.();
-        }
-      }}
+      tabIndex={isEditing ? -1 : 0}
+      onClick={handleRowClick}
+      onKeyDown={handleRowKeyDown}
       style={style}
       className={cn(
         "flex items-start gap-3 px-3 py-2 border-b border-border cursor-pointer transition-colors",
         "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset",
-        isActive && "bg-primary/10 border-l-2 border-l-primary"
+        isActive && "bg-primary/10 border-l-2 border-l-primary",
+        isEditing && "bg-muted/30"
       )}
     >
       {/* Sequence number */}
@@ -123,7 +300,11 @@ export const SegmentRow = memo(function SegmentRow({
 
       {/* Alert indicator */}
       <div className="shrink-0 pt-0.5">
-        <AlertIndicator severity={severity} />
+        {isPending ? (
+          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" aria-label="Saving..." />
+        ) : (
+          <AlertIndicator severity={severity} />
+        )}
       </div>
 
       {/* Content section */}
@@ -142,18 +323,30 @@ export const SegmentRow = memo(function SegmentRow({
           </div>
         )}
 
-        {/* Segment text */}
-        <p
-          className={cn(
-            "text-sm leading-relaxed break-words whitespace-pre-wrap",
-            segment.isSoundInfo && "italic text-muted-foreground"
-          )}
-        >
-          {segment.text}
-        </p>
+        {/* Segment text - editable */}
+        {isEditing ? (
+          <AutoResizeTextarea
+            value={editedText}
+            onChange={setEditedText}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            disabled={isPending}
+          />
+        ) : (
+          <p
+            data-text-content
+            className={cn(
+              "text-sm leading-relaxed break-words whitespace-pre-wrap cursor-text",
+              "hover:bg-muted/50 rounded px-1 -mx-1 transition-colors",
+              segment.isSoundInfo && "italic text-muted-foreground"
+            )}
+          >
+            {segment.text}
+          </p>
+        )}
 
         {/* Alert count badge */}
-        {alertCount > 0 && (
+        {alertCount > 0 && !isEditing && (
           <div
             className={cn(
               "inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-sm",
@@ -163,6 +356,17 @@ export const SegmentRow = memo(function SegmentRow({
             )}
           >
             {alertCount} {alertCount === 1 ? "alerte" : "alertes"}
+          </div>
+        )}
+
+        {/* Edit mode hint */}
+        {isEditing && (
+          <div className="text-xs text-muted-foreground">
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> valider
+            {" · "}
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> annuler
+            {" · "}
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Shift+Enter</kbd> nouvelle ligne
           </div>
         )}
       </div>

@@ -13,3 +13,6 @@ export type {
   UseFileStatusOptions,
   UseFileStatusReturn,
 } from "./useFileStatus";
+
+export { useSegmentMutation } from "./useSegmentMutation";
+export type { MutationStatus } from "./useSegmentMutation";
