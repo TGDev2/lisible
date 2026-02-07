@@ -23,6 +23,7 @@ interface SegmentsState {
   setActiveIndex: (index: number) => void;
   updateSegment: (segmentId: string, updates: Partial<Segment>) => void;
   updateSegmentAlerts: (segmentId: string, alerts: Alert[]) => void;
+  refreshAllAlerts: (alerts: Alert[]) => void;
   clearSegments: () => void;
   setLoading: (isLoading: boolean) => void;
 
@@ -74,6 +75,26 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
         seg.id === segmentId ? { ...seg, alerts } : seg
       ),
     })),
+
+  refreshAllAlerts: (alerts) =>
+    set((state) => {
+      // Group alerts by segmentId
+      const alertsBySegment = new Map<string, Alert[]>();
+      for (const alert of alerts) {
+        if (!alert.segmentId) continue;
+        const existing = alertsBySegment.get(alert.segmentId) ?? [];
+        existing.push(alert);
+        alertsBySegment.set(alert.segmentId, existing);
+      }
+
+      // Update all segments with their new alerts
+      return {
+        segments: state.segments.map((seg) => ({
+          ...seg,
+          alerts: alertsBySegment.get(seg.id) ?? [],
+        })),
+      };
+    }),
 
   clearSegments: () =>
     set({

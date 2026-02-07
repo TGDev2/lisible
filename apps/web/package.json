@@ -17,6 +17,8 @@
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@sme-studio/db": "workspace:^",
+    "@sme-studio/sme-engine": "workspace:^",
+    "@sme-studio/subtitle-parser": "workspace:^",
     "@tanstack/react-query": "^5.59.0",
     "@tanstack/react-virtual": "^3.13.18",
     "bcrypt": "^6.0.0",

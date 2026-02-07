@@ -4,7 +4,8 @@ import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
 import { useSegmentMutation } from "@/hooks";
-import type { SegmentWithAlerts, AlertSeverity } from "@/stores";
+import { useSegmentsStore, type SegmentWithAlerts, type AlertSeverity } from "@/stores";
+import { TimecodeInput } from "./TimecodeInput";
 
 interface SegmentRowProps {
   segment: SegmentWithAlerts;
@@ -163,100 +164,245 @@ export const SegmentRow = memo(function SegmentRow({
   const severity = getHighestSeverity(segment.alerts);
   const alertCount = segment.alerts.length;
 
-  // Editing state
-  const [isEditing, setIsEditing] = useState(false);
+  // Text editing state
+  const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState(segment.text);
+
+  // Timecode editing state
+  const [isEditingTimecodes, setIsEditingTimecodes] = useState(false);
+  const [editedStartMs, setEditedStartMs] = useState(segment.startMs);
+  const [editedEndMs, setEditedEndMs] = useState(segment.endMs);
+  const [timecodeError, setTimecodeError] = useState<string | null>(null);
+  const [timecodeWarning, setTimecodeWarning] = useState<string | null>(null);
+
   const rowRef = useRef<HTMLDivElement>(null);
+
+  // Combined editing state
+  const isEditing = isEditingText || isEditingTimecodes;
 
   // Mutation hook
   const { mutateSegment, rollback, isPending } = useSegmentMutation();
 
+  // Store action for refreshing alerts
+  const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
+
   // Sync editedText when segment.text changes externally
   useEffect(() => {
-    if (!isEditing) {
+    if (!isEditingText) {
       setEditedText(segment.text);
     }
-  }, [segment.text, isEditing]);
+  }, [segment.text, isEditingText]);
+
+  // Sync timecodes when segment changes externally
+  useEffect(() => {
+    if (!isEditingTimecodes) {
+      setEditedStartMs(segment.startMs);
+      setEditedEndMs(segment.endMs);
+      setTimecodeError(null);
+      setTimecodeWarning(null);
+    }
+  }, [segment.startMs, segment.endMs, isEditingTimecodes]);
 
   /**
-   * Enter edit mode
+   * Enter text edit mode
    */
-  const enterEditMode = useCallback(() => {
+  const enterTextEditMode = useCallback(() => {
     setEditedText(segment.text);
-    setIsEditing(true);
+    setIsEditingText(true);
   }, [segment.text]);
 
   /**
-   * Exit edit mode without saving
+   * Exit text edit mode without saving
    */
-  const cancelEdit = useCallback(() => {
+  const cancelTextEdit = useCallback(() => {
     setEditedText(segment.text);
-    setIsEditing(false);
+    setIsEditingText(false);
     rollback(segment.id);
   }, [segment.text, segment.id, rollback]);
 
   /**
-   * Save changes and exit edit mode
+   * Save text changes and exit edit mode
    */
-  const saveEdit = useCallback(async () => {
+  const saveTextEdit = useCallback(async () => {
     const trimmedText = editedText.trim();
 
     // Don't save if text is empty or unchanged
     if (!trimmedText || trimmedText === segment.text) {
-      cancelEdit();
+      cancelTextEdit();
       return;
     }
 
     // Optimistic update with debounce for rapid edits
     await mutateSegment(segment.id, { text: trimmedText }, { debounceMs: 300 });
-    setIsEditing(false);
-  }, [editedText, segment.text, segment.id, mutateSegment, cancelEdit]);
+    setIsEditingText(false);
+  }, [editedText, segment.text, segment.id, mutateSegment, cancelTextEdit]);
 
   /**
-   * Handle keyboard events in edit mode
+   * Enter timecode edit mode
    */
-  const handleKeyDown = useCallback(
+  const enterTimecodeEditMode = useCallback(() => {
+    setEditedStartMs(segment.startMs);
+    setEditedEndMs(segment.endMs);
+    setIsEditingTimecodes(true);
+    setTimecodeError(null);
+    setTimecodeWarning(null);
+  }, [segment.startMs, segment.endMs]);
+
+  /**
+   * Cancel timecode edit
+   */
+  const cancelTimecodeEdit = useCallback(() => {
+    setEditedStartMs(segment.startMs);
+    setEditedEndMs(segment.endMs);
+    setIsEditingTimecodes(false);
+    setTimecodeError(null);
+    setTimecodeWarning(null);
+    rollback(segment.id);
+  }, [segment.startMs, segment.endMs, segment.id, rollback]);
+
+  /**
+   * Save timecode changes
+   */
+  const saveTimecodeEdit = useCallback(async () => {
+    // Don't save if unchanged
+    if (editedStartMs === segment.startMs && editedEndMs === segment.endMs) {
+      setIsEditingTimecodes(false);
+      return;
+    }
+
+    // Client-side validation: out > in
+    if (editedEndMs <= editedStartMs) {
+      setTimecodeError("Le TC out doit être après le TC in");
+      return;
+    }
+
+    setTimecodeError(null);
+
+    // Save with optimistic update
+    const result = await mutateSegment(
+      segment.id,
+      { startMs: editedStartMs, endMs: editedEndMs },
+      { debounceMs: 0 }
+    );
+
+    if (result) {
+      setIsEditingTimecodes(false);
+      setTimecodeWarning(null);
+
+      // Recalculate alerts after timecode change
+      try {
+        const response = await fetch(`/api/files/${segment.fileId}/recalculate`, {
+          method: "POST",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.alerts) {
+            refreshAllAlerts(data.alerts);
+          }
+        }
+      } catch {
+        // Silently fail - alerts will be refreshed on next page load
+      }
+    }
+  }, [editedStartMs, editedEndMs, segment.startMs, segment.endMs, segment.id, segment.fileId, mutateSegment, refreshAllAlerts]);
+
+  /**
+   * Handle timecode change with validation feedback
+   */
+  const handleStartMsChange = useCallback((ms: number) => {
+    setEditedStartMs(ms);
+    setTimecodeError(null);
+    // Show warning if out <= in
+    if (editedEndMs <= ms) {
+      setTimecodeWarning("Le TC out sera avant le TC in");
+    } else {
+      setTimecodeWarning(null);
+    }
+  }, [editedEndMs]);
+
+  const handleEndMsChange = useCallback((ms: number) => {
+    setEditedEndMs(ms);
+    setTimecodeError(null);
+    // Show warning if out <= in
+    if (ms <= editedStartMs) {
+      setTimecodeWarning("Le TC out sera avant le TC in");
+    } else {
+      setTimecodeWarning(null);
+    }
+  }, [editedStartMs]);
+
+  /**
+   * Handle keyboard events in timecode edit mode
+   */
+  const handleTimecodeKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cancelTimecodeEdit();
+      }
+    },
+    [cancelTimecodeEdit]
+  );
+
+  /**
+   * Handle keyboard events in text edit mode
+   */
+  const handleTextKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
         // Enter without Shift = validate
         e.preventDefault();
-        saveEdit();
+        saveTextEdit();
       } else if (e.key === "Escape") {
         // Escape = cancel
         e.preventDefault();
-        cancelEdit();
+        cancelTextEdit();
       }
       // Shift+Enter allows new line (default behavior)
     },
-    [saveEdit, cancelEdit]
+    [saveTextEdit, cancelTextEdit]
   );
 
   /**
-   * Handle blur - save when clicking outside
+   * Handle text blur - save when clicking outside
    */
-  const handleBlur = useCallback(() => {
+  const handleTextBlur = useCallback(() => {
     // Small delay to allow click events to process first
     setTimeout(() => {
-      if (isEditing) {
-        saveEdit();
+      if (isEditingText) {
+        saveTextEdit();
       }
     }, 100);
-  }, [isEditing, saveEdit]);
+  }, [isEditingText, saveTextEdit]);
+
+  /**
+   * Handle timecode blur - save when clicking outside
+   */
+  const handleTimecodeBlur = useCallback(() => {
+    setTimeout(() => {
+      if (isEditingTimecodes) {
+        saveTimecodeEdit();
+      }
+    }, 150);
+  }, [isEditingTimecodes, saveTimecodeEdit]);
 
   /**
    * Handle row click
    */
   const handleRowClick = useCallback(
     (e: React.MouseEvent) => {
-      // If clicking on the text area, enter edit mode
       const target = e.target as HTMLElement;
+      // If clicking on the text area, enter text edit mode
       if (target.closest("[data-text-content]")) {
-        enterEditMode();
+        enterTextEditMode();
+      } else if (target.closest("[data-timecode]")) {
+        // If clicking on timecode, enter timecode edit mode
+        enterTimecodeEditMode();
       } else if (!isEditing) {
         onClick?.();
       }
     },
-    [enterEditMode, isEditing, onClick]
+    [enterTextEditMode, enterTimecodeEditMode, isEditing, onClick]
   );
 
   /**
@@ -270,12 +416,12 @@ export const SegmentRow = memo(function SegmentRow({
         e.preventDefault();
         onClick?.();
       } else if (e.key === "Tab" && !e.shiftKey) {
-        // Tab enters edit mode
+        // Tab enters text edit mode
         e.preventDefault();
-        enterEditMode();
+        enterTextEditMode();
       }
     },
-    [isEditing, onClick, enterEditMode]
+    [isEditing, onClick, enterTextEditMode]
   );
 
   return (
@@ -309,12 +455,50 @@ export const SegmentRow = memo(function SegmentRow({
 
       {/* Content section */}
       <div className="flex-1 min-w-0 space-y-1">
-        {/* Timecodes */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-          <span>{formatTimecode(segment.startMs)}</span>
-          <span className="text-muted-foreground/50">→</span>
-          <span>{formatTimecode(segment.endMs)}</span>
-        </div>
+        {/* Timecodes - editable */}
+        {isEditingTimecodes ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <TimecodeInput
+                value={editedStartMs}
+                onChange={handleStartMsChange}
+                onBlur={handleTimecodeBlur}
+                onKeyDown={handleTimecodeKeyDown}
+                disabled={isPending}
+                label="TC In"
+                error={timecodeError || undefined}
+              />
+              <span className="text-muted-foreground/50 pt-4">→</span>
+              <TimecodeInput
+                value={editedEndMs}
+                onChange={handleEndMsChange}
+                onBlur={handleTimecodeBlur}
+                onKeyDown={handleTimecodeKeyDown}
+                disabled={isPending}
+                label="TC Out"
+              />
+            </div>
+            {timecodeWarning && (
+              <span className="text-xs text-orange-500">{timecodeWarning}</span>
+            )}
+            <div className="text-xs text-muted-foreground">
+              <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> valider
+              {" · "}
+              <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> annuler
+              {" · "}
+              <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↑/↓</kbd> ±100ms
+            </div>
+          </div>
+        ) : (
+          <div
+            data-timecode
+            className="flex items-center gap-2 text-xs text-muted-foreground font-mono cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
+          >
+            <span>{formatTimecode(segment.startMs)}</span>
+            <span className="text-muted-foreground/50">→</span>
+            <span>{formatTimecode(segment.endMs)}</span>
+          </div>
+        )}
 
         {/* Speaker label if present */}
         {segment.speaker && (
@@ -324,12 +508,12 @@ export const SegmentRow = memo(function SegmentRow({
         )}
 
         {/* Segment text - editable */}
-        {isEditing ? (
+        {isEditingText ? (
           <AutoResizeTextarea
             value={editedText}
             onChange={setEditedText}
-            onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
+            onKeyDown={handleTextKeyDown}
+            onBlur={handleTextBlur}
             disabled={isPending}
           />
         ) : (
@@ -359,8 +543,8 @@ export const SegmentRow = memo(function SegmentRow({
           </div>
         )}
 
-        {/* Edit mode hint */}
-        {isEditing && (
+        {/* Text edit mode hint */}
+        {isEditingText && (
           <div className="text-xs text-muted-foreground">
             <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> valider
             {" · "}

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb, segments, files, eq } from "@sme-studio/db";
 import { auth } from "@/lib/auth";
 import { z } from "zod";
+import {
+  validateTimecodeChange,
+  type SegmentTimecode,
+} from "@/lib/timecode-validation";
 
 // Schema for PATCH request body
 const updateSegmentSchema = z.object({
@@ -78,6 +82,52 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // If updating timecodes, validate constraints
+    let validationWarnings: Array<{ code: string; message: string; overlapMs?: number }> = [];
+    if (updates.startMs !== undefined || updates.endMs !== undefined) {
+      const newStartMs = updates.startMs ?? existingSegment.startMs;
+      const newEndMs = updates.endMs ?? existingSegment.endMs;
+
+      // Get all segments for this file to check overlaps
+      const allFileSegments = await db
+        .select({
+          id: segments.id,
+          startMs: segments.startMs,
+          endMs: segments.endMs,
+          sequenceNum: segments.sequenceNum,
+        })
+        .from(segments)
+        .where(eq(segments.fileId, existingSegment.fileId));
+
+      const segmentTimecodes: SegmentTimecode[] = allFileSegments.map((s) => ({
+        id: s.id,
+        startMs: s.id === segmentId ? newStartMs : s.startMs,
+        endMs: s.id === segmentId ? newEndMs : s.endMs,
+        sequenceNum: s.sequenceNum,
+      }));
+
+      const validation = validateTimecodeChange(
+        segmentId,
+        newStartMs,
+        newEndMs,
+        segmentTimecodes
+      );
+
+      // Block if there are errors (out < in, negative, etc.)
+      if (!validation.valid) {
+        return NextResponse.json(
+          {
+            error: "Timecode validation failed",
+            details: validation.errors,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Keep warnings to return to client (overlap warnings)
+      validationWarnings = validation.warnings;
+    }
+
     // Update the segment
     const [updatedSegment] = await db
       .update(segments)
@@ -91,6 +141,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       success: true,
       segment: updatedSegment,
+      warnings: validationWarnings.length > 0 ? validationWarnings : undefined,
     });
   } catch (error) {
     console.error("Error updating segment:", error);
