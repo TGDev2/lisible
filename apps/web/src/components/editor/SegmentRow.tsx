@@ -164,6 +164,15 @@ export const SegmentRow = memo(function SegmentRow({
   const severity = getHighestSeverity(segment.alerts);
   const alertCount = segment.alerts.length;
 
+  // Store state for editing
+  const editingSegmentId = useSegmentsStore((s) => s.editingSegmentId);
+  const startEditing = useSegmentsStore((s) => s.startEditing);
+  const stopEditing = useSegmentsStore((s) => s.stopEditing);
+  const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
+
+  // Check if this segment should be in edit mode (triggered by keyboard Enter)
+  const shouldEditFromStore = editingSegmentId === segment.id;
+
   // Text editing state
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState(segment.text);
@@ -183,8 +192,13 @@ export const SegmentRow = memo(function SegmentRow({
   // Mutation hook
   const { mutateSegment, rollback, isPending } = useSegmentMutation();
 
-  // Store action for refreshing alerts
-  const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
+  // Enter text edit mode when store says so (keyboard Enter)
+  useEffect(() => {
+    if (shouldEditFromStore && !isEditing) {
+      setEditedText(segment.text);
+      setIsEditingText(true);
+    }
+  }, [shouldEditFromStore, isEditing, segment.text]);
 
   // Sync editedText when segment.text changes externally
   useEffect(() => {
@@ -209,7 +223,8 @@ export const SegmentRow = memo(function SegmentRow({
   const enterTextEditMode = useCallback(() => {
     setEditedText(segment.text);
     setIsEditingText(true);
-  }, [segment.text]);
+    startEditing(segment.id);
+  }, [segment.text, segment.id, startEditing]);
 
   /**
    * Exit text edit mode without saving
@@ -217,8 +232,9 @@ export const SegmentRow = memo(function SegmentRow({
   const cancelTextEdit = useCallback(() => {
     setEditedText(segment.text);
     setIsEditingText(false);
+    stopEditing();
     rollback(segment.id);
-  }, [segment.text, segment.id, rollback]);
+  }, [segment.text, segment.id, rollback, stopEditing]);
 
   /**
    * Save text changes and exit edit mode
@@ -235,7 +251,8 @@ export const SegmentRow = memo(function SegmentRow({
     // Optimistic update with debounce for rapid edits
     await mutateSegment(segment.id, { text: trimmedText }, { debounceMs: 300 });
     setIsEditingText(false);
-  }, [editedText, segment.text, segment.id, mutateSegment, cancelTextEdit]);
+    stopEditing();
+  }, [editedText, segment.text, segment.id, mutateSegment, cancelTextEdit, stopEditing]);
 
   /**
    * Enter timecode edit mode
@@ -246,7 +263,8 @@ export const SegmentRow = memo(function SegmentRow({
     setIsEditingTimecodes(true);
     setTimecodeError(null);
     setTimecodeWarning(null);
-  }, [segment.startMs, segment.endMs]);
+    startEditing(segment.id);
+  }, [segment.startMs, segment.endMs, segment.id, startEditing]);
 
   /**
    * Cancel timecode edit
@@ -257,8 +275,9 @@ export const SegmentRow = memo(function SegmentRow({
     setIsEditingTimecodes(false);
     setTimecodeError(null);
     setTimecodeWarning(null);
+    stopEditing();
     rollback(segment.id);
-  }, [segment.startMs, segment.endMs, segment.id, rollback]);
+  }, [segment.startMs, segment.endMs, segment.id, rollback, stopEditing]);
 
   /**
    * Save timecode changes
@@ -267,6 +286,7 @@ export const SegmentRow = memo(function SegmentRow({
     // Don't save if unchanged
     if (editedStartMs === segment.startMs && editedEndMs === segment.endMs) {
       setIsEditingTimecodes(false);
+      stopEditing();
       return;
     }
 
@@ -288,6 +308,7 @@ export const SegmentRow = memo(function SegmentRow({
     if (result) {
       setIsEditingTimecodes(false);
       setTimecodeWarning(null);
+      stopEditing();
 
       // Recalculate alerts after timecode change
       try {
@@ -304,7 +325,7 @@ export const SegmentRow = memo(function SegmentRow({
         // Silently fail - alerts will be refreshed on next page load
       }
     }
-  }, [editedStartMs, editedEndMs, segment.startMs, segment.endMs, segment.id, segment.fileId, mutateSegment, refreshAllAlerts]);
+  }, [editedStartMs, editedEndMs, segment.startMs, segment.endMs, segment.id, segment.fileId, mutateSegment, refreshAllAlerts, stopEditing]);
 
   /**
    * Handle timecode change with validation feedback
@@ -412,16 +433,14 @@ export const SegmentRow = memo(function SegmentRow({
     (e: React.KeyboardEvent) => {
       if (isEditing) return;
 
-      if (e.key === "Enter" || e.key === " ") {
+      if (e.key === " ") {
+        // Space selects the segment
         e.preventDefault();
         onClick?.();
-      } else if (e.key === "Tab" && !e.shiftKey) {
-        // Tab enters text edit mode
-        e.preventDefault();
-        enterTextEditMode();
       }
+      // Enter and Tab are now handled by the keyboard navigation hook at the list level
     },
-    [isEditing, onClick, enterTextEditMode]
+    [isEditing, onClick]
   );
 
   return (
@@ -434,9 +453,9 @@ export const SegmentRow = memo(function SegmentRow({
       style={style}
       className={cn(
         "flex items-start gap-3 px-3 py-2 border-b border-border cursor-pointer transition-colors",
-        "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset",
-        isActive && "bg-primary/10 border-l-2 border-l-primary",
-        isEditing && "bg-muted/30"
+        "hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+        isActive && "bg-primary/10 border-l-2 border-l-primary ring-2 ring-primary/50 ring-inset",
+        isEditing && "bg-muted/30 ring-0"
       )}
     >
       {/* Sequence number */}

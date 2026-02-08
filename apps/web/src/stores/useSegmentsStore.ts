@@ -15,6 +15,9 @@ interface SegmentsState {
   // Active segment
   activeIndex: number;
 
+  // Editing state
+  editingSegmentId: string | null;
+
   // Loading state
   isLoading: boolean;
 
@@ -27,6 +30,10 @@ interface SegmentsState {
   clearSegments: () => void;
   setLoading: (isLoading: boolean) => void;
 
+  // Editing
+  startEditing: (segmentId: string) => void;
+  stopEditing: () => void;
+
   // Navigation
   goToNextSegment: () => void;
   goToPreviousSegment: () => void;
@@ -38,6 +45,7 @@ interface SegmentsState {
   getActiveSegment: () => SegmentWithAlerts | undefined;
   getSegmentAlerts: (segmentId: string) => Alert[];
   getHighestSeverity: (segmentId: string) => AlertSeverity | null;
+  isEditing: () => boolean;
 }
 
 export const useSegmentsStore = create<SegmentsState>((set, get) => ({
@@ -45,6 +53,7 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
   segments: [],
   fileId: null,
   activeIndex: 0,
+  editingSegmentId: null,
   isLoading: false,
 
   // Actions
@@ -53,6 +62,7 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
       segments,
       fileId,
       activeIndex: 0,
+      editingSegmentId: null,
     }),
 
   setActiveIndex: (index) => {
@@ -104,6 +114,10 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
     }),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  // Editing
+  startEditing: (segmentId) => set({ editingSegmentId: segmentId }),
+  stopEditing: () => set({ editingSegmentId: null }),
 
   // Navigation
   goToNextSegment: () => {
@@ -185,6 +199,8 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
     }
     return null;
   },
+
+  isEditing: () => get().editingSegmentId !== null,
 }));
 
 // Hook to subscribe to specific segment

@@ -4,6 +4,7 @@ import React, { useRef, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { useSegmentsStore } from "@/stores";
+import { useKeyboardNavigation } from "@/hooks";
 import { SegmentRow } from "./SegmentRow";
 import { Loader2 } from "lucide-react";
 
@@ -38,6 +39,28 @@ export function SegmentList({
   const activeIndex = useSegmentsStore((state) => state.activeIndex);
   const isLoading = useSegmentsStore((state) => state.isLoading);
   const setActiveIndex = useSegmentsStore((state) => state.setActiveIndex);
+  const editingSegmentId = useSegmentsStore((state) => state.editingSegmentId);
+  const startEditing = useSegmentsStore((state) => state.startEditing);
+
+  // Handle Enter key to start editing active segment
+  const handleEnterActiveSegment = useCallback(() => {
+    const activeSegment = segments[activeIndex];
+    if (activeSegment) {
+      startEditing(activeSegment.id);
+    }
+  }, [segments, activeIndex, startEditing]);
+
+  // Keyboard navigation hook
+  const { setIsEditing } = useKeyboardNavigation({
+    enabled: true,
+    onEnterActiveSegment: handleEnterActiveSegment,
+    containerRef: parentRef,
+  });
+
+  // Sync editing state with the hook
+  useEffect(() => {
+    setIsEditing(editingSegmentId !== null);
+  }, [editingSegmentId, setIsEditing]);
 
   // Setup virtualizer
   const virtualizer = useVirtualizer({
@@ -137,10 +160,11 @@ export function SegmentList({
     <div
       ref={parentRef}
       className={cn(
-        "h-full overflow-auto",
+        "h-full overflow-auto focus:outline-none",
         className
       )}
       role="listbox"
+      tabIndex={0}
       aria-label="Liste des segments"
       aria-activedescendant={
         segments[activeIndex]

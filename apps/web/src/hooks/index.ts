@@ -16,3 +16,6 @@ export type {
 
 export { useSegmentMutation } from "./useSegmentMutation";
 export type { MutationStatus } from "./useSegmentMutation";
+
+export { useKeyboardNavigation } from "./useKeyboardNavigation";
+export type { } from "./useKeyboardNavigation";
