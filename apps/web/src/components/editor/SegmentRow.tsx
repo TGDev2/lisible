@@ -6,6 +6,7 @@ import { AlertCircle, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-r
 import { useSegmentMutation } from "@/hooks";
 import { useSegmentsStore, type SegmentWithAlerts, type AlertSeverity } from "@/stores";
 import { TimecodeInput } from "./TimecodeInput";
+import { SoundInfoDropdown } from "./SoundInfoDropdown";
 
 interface SegmentRowProps {
   segment: SegmentWithAlerts;
@@ -408,6 +409,29 @@ export const SegmentRow = memo(function SegmentRow({
   }, [isEditingTimecodes, saveTimecodeEdit]);
 
   /**
+   * Handle sound info insertion
+   * Inserts at cursor if editing, or replaces entire segment text
+   * Also sets the isSoundInfo flag on the segment
+   */
+  const handleSoundInfoInsert = useCallback(
+    async (soundInfo: string) => {
+      if (isEditingText) {
+        // Insert at current position (append to current text)
+        const newText = editedText ? `${editedText} ${soundInfo}` : soundInfo;
+        setEditedText(newText);
+      } else {
+        // Replace segment text and set isSoundInfo flag
+        await mutateSegment(
+          segment.id,
+          { text: soundInfo, isSoundInfo: true },
+          { debounceMs: 0 }
+        );
+      }
+    },
+    [isEditingText, editedText, segment.id, mutateSegment]
+  );
+
+  /**
    * Handle row click
    */
   const handleRowClick = useCallback(
@@ -528,24 +552,43 @@ export const SegmentRow = memo(function SegmentRow({
 
         {/* Segment text - editable */}
         {isEditingText ? (
-          <AutoResizeTextarea
-            value={editedText}
-            onChange={setEditedText}
-            onKeyDown={handleTextKeyDown}
-            onBlur={handleTextBlur}
-            disabled={isPending}
-          />
+          <div className="space-y-1">
+            <AutoResizeTextarea
+              value={editedText}
+              onChange={setEditedText}
+              onKeyDown={handleTextKeyDown}
+              onBlur={handleTextBlur}
+              disabled={isPending}
+            />
+            <div className="flex items-center gap-2">
+              <SoundInfoDropdown
+                onInsert={handleSoundInfoInsert}
+                disabled={isPending}
+              />
+            </div>
+          </div>
         ) : (
-          <p
-            data-text-content
-            className={cn(
-              "text-sm leading-relaxed break-words whitespace-pre-wrap cursor-text",
-              "hover:bg-muted/50 rounded px-1 -mx-1 transition-colors",
-              segment.isSoundInfo && "italic text-muted-foreground"
+          <div className="group">
+            <p
+              data-text-content
+              className={cn(
+                "text-sm leading-relaxed break-words whitespace-pre-wrap cursor-text",
+                "hover:bg-muted/50 rounded px-1 -mx-1 transition-colors",
+                segment.isSoundInfo && "italic text-muted-foreground"
+              )}
+            >
+              {segment.text}
+            </p>
+            {/* Sound info dropdown - visible on active segment */}
+            {isActive && (
+              <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <SoundInfoDropdown
+                  onInsert={handleSoundInfoInsert}
+                  disabled={isPending}
+                />
+              </div>
             )}
-          >
-            {segment.text}
-          </p>
+          </div>
         )}
 
         {/* Alert count badge */}
