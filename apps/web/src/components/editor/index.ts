@@ -1,4 +1,5 @@
 export { SegmentList } from "./SegmentList";
 export { SegmentRow } from "./SegmentRow";
 export { SoundInfoDropdown } from "./SoundInfoDropdown";
+export { SpeakerDropdown } from "./SpeakerDropdown";
 export { TimecodeInput } from "./TimecodeInput";

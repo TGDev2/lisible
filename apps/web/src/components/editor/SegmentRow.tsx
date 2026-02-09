@@ -7,6 +7,7 @@ import { useSegmentMutation } from "@/hooks";
 import { useSegmentsStore, type SegmentWithAlerts, type AlertSeverity } from "@/stores";
 import { TimecodeInput } from "./TimecodeInput";
 import { SoundInfoDropdown } from "./SoundInfoDropdown";
+import { SpeakerDropdown } from "./SpeakerDropdown";
 
 interface SegmentRowProps {
   segment: SegmentWithAlerts;
@@ -432,6 +433,21 @@ export const SegmentRow = memo(function SegmentRow({
   );
 
   /**
+   * Handle speaker selection
+   * Updates the segment's speaker field
+   */
+  const handleSpeakerSelect = useCallback(
+    async (speaker: string | null) => {
+      await mutateSegment(
+        segment.id,
+        { speaker },
+        { debounceMs: 0 }
+      );
+    },
+    [segment.id, mutateSegment]
+  );
+
+  /**
    * Handle row click
    */
   const handleRowClick = useCallback(
@@ -561,6 +577,11 @@ export const SegmentRow = memo(function SegmentRow({
               disabled={isPending}
             />
             <div className="flex items-center gap-2">
+              <SpeakerDropdown
+                currentSpeaker={segment.speaker}
+                onSelect={handleSpeakerSelect}
+                disabled={isPending}
+              />
               <SoundInfoDropdown
                 onInsert={handleSoundInfoInsert}
                 disabled={isPending}
@@ -579,9 +600,14 @@ export const SegmentRow = memo(function SegmentRow({
             >
               {segment.text}
             </p>
-            {/* Sound info dropdown - visible on active segment */}
+            {/* Speaker and Sound info dropdowns - visible on active segment */}
             {isActive && (
-              <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-1 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <SpeakerDropdown
+                  currentSpeaker={segment.speaker}
+                  onSelect={handleSpeakerSelect}
+                  disabled={isPending}
+                />
                 <SoundInfoDropdown
                   onInsert={handleSoundInfoInsert}
                   disabled={isPending}
