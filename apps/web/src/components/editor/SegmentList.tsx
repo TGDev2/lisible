@@ -19,6 +19,10 @@ interface SegmentListProps {
   onMergeSegments?: (segmentIds: string[]) => void;
   /** Whether merge is in progress */
   isMerging?: boolean;
+  /** Callback when split is requested */
+  onSplitSegment?: (segmentId: string, cursorPosition: number) => void;
+  /** Whether split is in progress */
+  isSplitting?: boolean;
 }
 
 /**
@@ -37,6 +41,8 @@ export function SegmentList({
   autoScrollToActive = true,
   onMergeSegments,
   isMerging = false,
+  onSplitSegment,
+  isSplitting = false,
 }: SegmentListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const scrollingRef = useRef(false);
@@ -287,6 +293,8 @@ export function SegmentList({
                   isActive={isActive}
                   isSelected={isSelected}
                   onClick={(e: React.MouseEvent) => handleSegmentClick(virtualItem.index, e)}
+                  onSplitSegment={onSplitSegment}
+                  isSplitting={isSplitting}
                 />
               </div>
             );

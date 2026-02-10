@@ -16,6 +16,10 @@ interface UseKeyboardNavigationOptions {
    */
   onMergeSegments?: () => void;
   /**
+   * Callback when Ctrl+Shift+S is pressed (split segment)
+   */
+  onSplitSegment?: () => void;
+  /**
    * External ref to attach keyboard listeners to
    * If not provided, events are attached to the document
    */
@@ -49,6 +53,7 @@ export function useKeyboardNavigation({
   enabled = true,
   onEnterActiveSegment,
   onMergeSegments,
+  onSplitSegment,
   containerRef,
 }: UseKeyboardNavigationOptions = {}): UseKeyboardNavigationReturn {
   const isEditingRef = useRef(false);
@@ -128,11 +133,20 @@ export function useKeyboardNavigation({
           }
           break;
 
+        case "s":
+        case "S":
+          // Ctrl+Shift+S or Cmd+Shift+S: split segment at cursor
+          if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
+            event.preventDefault();
+            onSplitSegment?.();
+          }
+          break;
+
         default:
           break;
       }
     },
-    [enabled, segments.length, goToNextSegment, goToPreviousSegment, onEnterActiveSegment, onMergeSegments]
+    [enabled, segments.length, goToNextSegment, goToPreviousSegment, onEnterActiveSegment, onMergeSegments, onSplitSegment]
   );
 
   /**

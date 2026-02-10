@@ -33,6 +33,7 @@ interface SegmentsState {
   clearSegments: () => void;
   setLoading: (isLoading: boolean) => void;
   removeSegment: (segmentId: string) => void;
+  insertSegmentAfter: (afterSegmentId: string, newSegment: SegmentWithAlerts, updatedFirstSegment: Partial<Segment>) => void;
 
   // Multi-selection
   selectSegment: (segmentId: string) => void;
@@ -148,6 +149,30 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
         selectedSegmentIds: newSelectedIds,
         activeIndex: newActiveIndex,
       };
+    }),
+
+  insertSegmentAfter: (afterSegmentId, newSegment, updatedFirstSegment) =>
+    set((state) => {
+      const afterIndex = state.segments.findIndex((seg) => seg.id === afterSegmentId);
+      if (afterIndex === -1) return state;
+
+      // Update the first segment and increment sequenceNum for subsequent segments
+      const newSegments = state.segments.map((seg, idx) => {
+        if (seg.id === afterSegmentId) {
+          // Update the split segment with new values
+          return { ...seg, ...updatedFirstSegment, alerts: [] };
+        }
+        if (idx > afterIndex) {
+          // Increment sequenceNum for segments after the insertion point
+          return { ...seg, sequenceNum: seg.sequenceNum + 1 };
+        }
+        return seg;
+      });
+
+      // Insert the new segment after the split segment
+      newSegments.splice(afterIndex + 1, 0, newSegment);
+
+      return { segments: newSegments };
     }),
 
   // Multi-selection

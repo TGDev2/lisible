@@ -37,6 +37,7 @@ export default function EditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [isSplitting, setIsSplitting] = useState(false);
 
   // Segment store
   const setSegments = useSegmentsStore((s) => s.setSegments);
@@ -44,6 +45,8 @@ export default function EditorPage() {
   const removeSegment = useSegmentsStore((s) => s.removeSegment);
   const clearSelection = useSegmentsStore((s) => s.clearSelection);
   const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
+  const insertSegmentAfter = useSegmentsStore((s) => s.insertSegmentAfter);
+  const stopEditing = useSegmentsStore((s) => s.stopEditing);
 
   // Segment edit hook with automatic score recalculation
   const {
@@ -155,6 +158,58 @@ export default function EditorPage() {
     [fileId, updateSegment, removeSegment, clearSelection, refreshAllAlerts]
   );
 
+  // Handle split segment
+  const handleSplitSegment = useCallback(
+    async (segmentId: string, cursorPosition: number) => {
+      try {
+        setIsSplitting(true);
+
+        const response = await fetch("/api/segments/split", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ segmentId, cursorPosition }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to split segment");
+        }
+
+        const data = await response.json();
+
+        // Update the store with the split result
+        if (data.firstSegment && data.newSegment) {
+          // Insert the new segment after the first and update the first segment
+          insertSegmentAfter(segmentId, {
+            ...data.newSegment,
+            alerts: [],
+          }, data.firstSegment);
+        }
+
+        // Stop editing mode
+        stopEditing();
+
+        // Recalculate score and alerts
+        const recalcResponse = await fetch(`/api/files/${fileId}/recalculate`, {
+          method: "POST",
+        });
+
+        if (recalcResponse.ok) {
+          const recalcData = await recalcResponse.json();
+          if (recalcData.alerts) {
+            refreshAllAlerts(recalcData.alerts);
+          }
+        }
+      } catch (err) {
+        console.error("Error splitting segment:", err);
+        // Could show a toast notification here
+      } finally {
+        setIsSplitting(false);
+      }
+    },
+    [fileId, insertSegmentAfter, stopEditing, refreshAllAlerts]
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -221,6 +276,8 @@ export default function EditorPage() {
           <SegmentList
             onMergeSegments={handleMergeSegments}
             isMerging={isMerging}
+            onSplitSegment={handleSplitSegment}
+            isSplitting={isSplitting}
           />
         </div>
 

@@ -2,12 +2,13 @@
 
 import React, { memo, useState, useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { AlertCircle, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Info, CheckCircle, Loader2, Scissors } from "lucide-react";
 import { useSegmentMutation } from "@/hooks";
 import { useSegmentsStore, type SegmentWithAlerts, type AlertSeverity } from "@/stores";
 import { TimecodeInput } from "./TimecodeInput";
 import { SoundInfoDropdown } from "./SoundInfoDropdown";
 import { SpeakerDropdown } from "./SpeakerDropdown";
+import { Button } from "@/components/ui/button";
 
 interface SegmentRowProps {
   segment: SegmentWithAlerts;
@@ -15,6 +16,10 @@ interface SegmentRowProps {
   isSelected?: boolean;
   onClick?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
+  /** Callback when split is requested */
+  onSplitSegment?: (segmentId: string, cursorPosition: number) => void;
+  /** Whether split is in progress */
+  isSplitting?: boolean;
 }
 
 /**
@@ -92,7 +97,7 @@ function AlertIndicator({ severity }: { severity: AlertSeverity | null }) {
 }
 
 /**
- * Auto-resizing textarea component
+ * Auto-resizing textarea component with exposed ref for cursor position
  */
 interface AutoResizeTextareaProps {
   value: string;
@@ -101,6 +106,7 @@ interface AutoResizeTextareaProps {
   onBlur: () => void;
   disabled?: boolean;
   className?: string;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 const AutoResizeTextarea = memo(function AutoResizeTextarea({
@@ -110,8 +116,10 @@ const AutoResizeTextarea = memo(function AutoResizeTextarea({
   onBlur,
   disabled,
   className,
+  textareaRef: externalRef,
 }: AutoResizeTextareaProps) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const internalRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = externalRef || internalRef;
 
   // Auto-resize effect
   useEffect(() => {
@@ -122,7 +130,7 @@ const AutoResizeTextarea = memo(function AutoResizeTextarea({
       // Set height to scrollHeight to expand
       textarea.style.height = `${textarea.scrollHeight}px`;
     }
-  }, [value]);
+  }, [value, textareaRef]);
 
   // Focus on mount
   useEffect(() => {
@@ -132,7 +140,7 @@ const AutoResizeTextarea = memo(function AutoResizeTextarea({
       // Place cursor at end
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }
-  }, []);
+  }, [textareaRef]);
 
   return (
     <textarea
@@ -164,6 +172,8 @@ export const SegmentRow = memo(function SegmentRow({
   isSelected = false,
   onClick,
   style,
+  onSplitSegment,
+  isSplitting = false,
 }: SegmentRowProps) {
   const severity = getHighestSeverity(segment.alerts);
   const alertCount = segment.alerts.length;
@@ -180,6 +190,9 @@ export const SegmentRow = memo(function SegmentRow({
   // Text editing state
   const [isEditingText, setIsEditingText] = useState(false);
   const [editedText, setEditedText] = useState(segment.text);
+
+  // Ref to textarea for getting cursor position
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Timecode editing state
   const [isEditingTimecodes, setIsEditingTimecodes] = useState(false);
@@ -370,6 +383,39 @@ export const SegmentRow = memo(function SegmentRow({
   );
 
   /**
+   * Handle split segment action
+   * Gets cursor position from textarea and calls the split callback
+   */
+  const handleSplit = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !onSplitSegment) return;
+
+    const cursorPosition = textarea.selectionStart;
+    const textLength = editedText.length;
+
+    // Edge case: cursor at beginning or end - no split possible
+    if (cursorPosition <= 0 || cursorPosition >= textLength) {
+      return;
+    }
+
+    onSplitSegment(segment.id, cursorPosition);
+  }, [editedText.length, onSplitSegment, segment.id]);
+
+  /**
+   * Check if split is possible at current cursor position
+   */
+  const canSplit = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return false;
+
+    const cursorPosition = textarea.selectionStart;
+    const textLength = editedText.length;
+
+    // Can't split at beginning or end
+    return cursorPosition > 0 && cursorPosition < textLength;
+  }, [editedText.length]);
+
+  /**
    * Handle keyboard events in text edit mode
    */
   const handleTextKeyDown = useCallback(
@@ -382,10 +428,14 @@ export const SegmentRow = memo(function SegmentRow({
         // Escape = cancel
         e.preventDefault();
         cancelTextEdit();
+      } else if ((e.key === "s" || e.key === "S") && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+        // Ctrl+Shift+S or Cmd+Shift+S = split at cursor
+        e.preventDefault();
+        handleSplit();
       }
       // Shift+Enter allows new line (default behavior)
     },
-    [saveTextEdit, cancelTextEdit]
+    [saveTextEdit, cancelTextEdit, handleSplit]
   );
 
   /**
@@ -577,18 +627,36 @@ export const SegmentRow = memo(function SegmentRow({
               onChange={setEditedText}
               onKeyDown={handleTextKeyDown}
               onBlur={handleTextBlur}
-              disabled={isPending}
+              disabled={isPending || isSplitting}
+              textareaRef={textareaRef}
             />
             <div className="flex items-center gap-2">
               <SpeakerDropdown
                 currentSpeaker={segment.speaker}
                 onSelect={handleSpeakerSelect}
-                disabled={isPending}
+                disabled={isPending || isSplitting}
               />
               <SoundInfoDropdown
                 onInsert={handleSoundInfoInsert}
-                disabled={isPending}
+                disabled={isPending || isSplitting}
               />
+              {onSplitSegment && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSplit}
+                  disabled={isPending || isSplitting || !canSplit()}
+                  title="Scinder le segment à la position du curseur (Ctrl+Shift+S)"
+                  className="h-7 px-2"
+                >
+                  {isSplitting ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Scissors className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Scinder
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -642,6 +710,12 @@ export const SegmentRow = memo(function SegmentRow({
             <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> annuler
             {" · "}
             <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Shift+Enter</kbd> nouvelle ligne
+            {onSplitSegment && (
+              <>
+                {" · "}
+                <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Ctrl+Shift+S</kbd> scinder
+              </>
+            )}
           </div>
         )}
       </div>
