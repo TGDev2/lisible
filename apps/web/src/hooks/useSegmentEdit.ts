@@ -3,7 +3,6 @@
 import { useCallback, useRef } from "react";
 import { useSegmentMutation } from "./useSegmentMutation";
 import { useScoreRecalculation } from "./useScoreRecalculation";
-import type { Segment } from "@sme-studio/db";
 
 interface UseSegmentEditOptions {
   /** File ID for score recalculation */
@@ -80,7 +79,6 @@ export function useSegmentEdit(options: UseSegmentEditOptions) {
       updates: UpdateSegmentParams
     ): Promise<boolean> => {
       const isTextEdit = "text" in updates;
-      const isTimecodeEdit = "startMs" in updates || "endMs" in updates;
 
       // Track text edits for debouncing
       if (isTextEdit) {

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useSegmentsStore } from "@/stores";
+import type { Alert } from "@sme-studio/db";
 
 export interface RecalculationResult {
   success: boolean;
@@ -12,15 +13,7 @@ export interface RecalculationResult {
     byRule: Record<string, number>;
     penalties: number;
   };
-  alerts: Array<{
-    id: string;
-    fileId: string;
-    segmentId: string;
-    ruleCode: string;
-    severity: string;
-    message: string;
-    details: Record<string, unknown>;
-  }>;
+  alerts: Alert[];
 }
 
 export type RecalculationStatus = "idle" | "pending" | "success" | "error";
@@ -55,35 +48,11 @@ export function useScoreRecalculation(fileId: string | null) {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
-   * Trigger a score recalculation with debounce
-   * Multiple calls within 300ms will only trigger one API call
-   */
-  const triggerRecalculation = useCallback(() => {
-    if (!fileId) return;
-
-    // Clear any pending debounce
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Cancel any in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Debounce the recalculation
-    debounceTimerRef.current = setTimeout(async () => {
-      await executeRecalculation(fileId);
-    }, DEBOUNCE_MS);
-  }, [fileId]);
-
-  /**
-   * Execute the recalculation immediately (no debounce)
-   * Useful for initial load or forced refresh
+   * Execute the recalculation API call
    */
   const executeRecalculation = useCallback(
     async (targetFileId: string): Promise<RecalculationResult | null> => {
-      // Store previous score for animation
+      // Store previous score for animation using functional update
       setState((prev) => ({
         ...prev,
         status: "pending",
@@ -111,12 +80,13 @@ export function useScoreRecalculation(fileId: string | null) {
         // Update store with new alerts
         refreshAllAlerts(result.alerts);
 
-        setState({
+        // Update state with new score using functional update
+        setState((prev) => ({
           status: "success",
           score: result.score,
-          previousScore: state.score,
+          previousScore: prev.score,
           error: null,
-        });
+        }));
 
         return result;
       } catch (error) {
@@ -135,8 +105,31 @@ export function useScoreRecalculation(fileId: string | null) {
         return null;
       }
     },
-    [refreshAllAlerts, state.score]
+    [refreshAllAlerts]
   );
+
+  /**
+   * Trigger a score recalculation with debounce
+   * Multiple calls within 300ms will only trigger one API call
+   */
+  const triggerRecalculation = useCallback(() => {
+    if (!fileId) return;
+
+    // Clear any pending debounce
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Debounce the recalculation
+    debounceTimerRef.current = setTimeout(() => {
+      executeRecalculation(fileId);
+    }, DEBOUNCE_MS);
+  }, [fileId, executeRecalculation]);
 
   /**
    * Force immediate recalculation (bypasses debounce)

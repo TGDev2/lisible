@@ -158,7 +158,7 @@ export default function EditorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Segment list */}
         <div className="flex-1 overflow-hidden">
-          <SegmentList fileId={fileId} />
+          <SegmentList />
         </div>
 
         {/* Video player panel (placeholder) */}

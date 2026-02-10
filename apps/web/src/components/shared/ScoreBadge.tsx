@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ScoreBadgeProps {
@@ -76,14 +76,18 @@ export function ScoreBadge({
   const [displayedScore, setDisplayedScore] = useState(score);
   const [delta, setDelta] = useState<number | null>(null);
 
+  // Ref to track the last displayed score for animation
+  const lastDisplayedScoreRef = useRef(score);
+
   // Animate score changes
   useEffect(() => {
     if (score === null) {
       setDisplayedScore(null);
+      lastDisplayedScoreRef.current = null;
       return;
     }
 
-    const prev = previousScore ?? displayedScore;
+    const prev = previousScore ?? lastDisplayedScoreRef.current;
 
     if (prev !== null && prev !== score) {
       // Calculate delta
@@ -102,6 +106,7 @@ export function ScoreBadge({
         currentStep++;
         if (currentStep >= steps) {
           setDisplayedScore(score);
+          lastDisplayedScoreRef.current = score;
           clearInterval(animationInterval);
 
           // Keep delta visible for a moment then fade
@@ -117,6 +122,7 @@ export function ScoreBadge({
       return () => clearInterval(animationInterval);
     } else {
       setDisplayedScore(score);
+      lastDisplayedScoreRef.current = score;
     }
   }, [score, previousScore]);
 

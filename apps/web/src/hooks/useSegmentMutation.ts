@@ -37,6 +37,47 @@ export function useSegmentMutation() {
   const originalValuesRef = useRef<Map<string, Partial<Segment>>>(new Map());
 
   /**
+   * Persist update to the API
+   */
+  const persistUpdate = useCallback(
+    async (segmentId: string, updates: UpdateSegmentParams): Promise<boolean> => {
+      setState({ status: "pending", error: null });
+
+      try {
+        const response = await fetch(`/api/segments/${segmentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updates),
+        });
+
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `Failed to update segment: ${response.status}`);
+        }
+
+        // Clear stored original value on success
+        originalValuesRef.current.delete(segmentId);
+
+        setState({ status: "success", error: null });
+        return true;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to update segment";
+
+        // Rollback to original values
+        const originalValues = originalValuesRef.current.get(segmentId);
+        if (originalValues) {
+          updateSegment(segmentId, originalValues);
+          originalValuesRef.current.delete(segmentId);
+        }
+
+        setState({ status: "error", error: errorMessage });
+        return false;
+      }
+    },
+    [updateSegment]
+  );
+
+  /**
    * Update a segment optimistically with API persistence
    * @param segmentId - The segment ID to update
    * @param updates - The updates to apply
@@ -90,48 +131,7 @@ export function useSegmentMutation() {
       // Persist immediately
       return persistUpdate(segmentId, updates);
     },
-    [updateSegment, getSegmentById]
-  );
-
-  /**
-   * Persist update to the API
-   */
-  const persistUpdate = useCallback(
-    async (segmentId: string, updates: UpdateSegmentParams): Promise<boolean> => {
-      setState({ status: "pending", error: null });
-
-      try {
-        const response = await fetch(`/api/segments/${segmentId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updates),
-        });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || `Failed to update segment: ${response.status}`);
-        }
-
-        // Clear stored original value on success
-        originalValuesRef.current.delete(segmentId);
-
-        setState({ status: "success", error: null });
-        return true;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to update segment";
-
-        // Rollback to original values
-        const originalValues = originalValuesRef.current.get(segmentId);
-        if (originalValues) {
-          updateSegment(segmentId, originalValues);
-          originalValuesRef.current.delete(segmentId);
-        }
-
-        setState({ status: "error", error: errorMessage });
-        return false;
-      }
-    },
-    [updateSegment]
+    [updateSegment, getSegmentById, persistUpdate]
   );
 
   /**
