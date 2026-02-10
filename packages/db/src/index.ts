@@ -30,4 +30,4 @@ export function getDb(): Database {
 
 // Export drizzle utilities
 export { sql } from "drizzle-orm";
-export { eq, ne, gt, gte, lt, lte, and, or, not, inArray, isNull, isNotNull } from "drizzle-orm";
+export { eq, ne, gt, gte, lt, lte, and, or, not, inArray, isNull, isNotNull, asc, desc } from "drizzle-orm";

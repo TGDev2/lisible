@@ -1,11 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb, files, jobs, eq, and } from "@sme-studio/db";
+import { getDb, files, segments, alerts, jobs, eq, and, asc } from "@sme-studio/db";
 import { deleteObject } from "@/lib/storage";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
 };
+
+/**
+ * GET /api/files/[id]
+ * Get file with segments and alerts for the editor
+ */
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+  try {
+    // Authentication check
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    const { id: fileId } = await params;
+
+    // Validate fileId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(fileId)) {
+      return NextResponse.json({ error: "ID de fichier invalide" }, { status: 400 });
+    }
+
+    const db = getDb();
+
+    // Get file record
+    const [file] = await db
+      .select()
+      .from(files)
+      .where(eq(files.id, fileId))
+      .limit(1);
+
+    if (!file) {
+      return NextResponse.json({ error: "Fichier non trouvé" }, { status: 404 });
+    }
+
+    // Check ownership
+    if (file.userId !== userId) {
+      return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
+    }
+
+    // Get all segments ordered by sequence
+    const fileSegments = await db
+      .select()
+      .from(segments)
+      .where(eq(segments.fileId, fileId))
+      .orderBy(asc(segments.sequenceNum));
+
+    // Get all alerts for this file
+    const fileAlerts = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.fileId, fileId));
+
+    // Group alerts by segment
+    const alertsBySegment = new Map<string, typeof fileAlerts>();
+    for (const alert of fileAlerts) {
+      if (!alert.segmentId) continue;
+      const existing = alertsBySegment.get(alert.segmentId) ?? [];
+      existing.push(alert);
+      alertsBySegment.set(alert.segmentId, existing);
+    }
+
+    // Combine segments with their alerts
+    const segmentsWithAlerts = fileSegments.map((segment) => ({
+      ...segment,
+      alerts: alertsBySegment.get(segment.id) ?? [],
+    }));
+
+    return NextResponse.json({
+      id: file.id,
+      projectId: file.projectId,
+      originalName: file.originalName,
+      fileType: file.fileType,
+      status: file.status,
+      smeScore: file.smeScore,
+      smeAnalyzedAt: file.smeAnalyzedAt,
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt,
+      segments: segmentsWithAlerts,
+    });
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
+}
 
 /**
  * DELETE /api/files/[id]

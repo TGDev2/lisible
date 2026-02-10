@@ -3,3 +3,4 @@ export { SegmentRow } from "./SegmentRow";
 export { SoundInfoDropdown } from "./SoundInfoDropdown";
 export { SpeakerDropdown } from "./SpeakerDropdown";
 export { TimecodeInput } from "./TimecodeInput";
+export { EditorHeader } from "./EditorHeader";

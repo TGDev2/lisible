@@ -19,3 +19,11 @@ export type { MutationStatus } from "./useSegmentMutation";
 
 export { useKeyboardNavigation } from "./useKeyboardNavigation";
 export type { } from "./useKeyboardNavigation";
+
+export { useScoreRecalculation } from "./useScoreRecalculation";
+export type {
+  RecalculationResult,
+  RecalculationStatus,
+} from "./useScoreRecalculation";
+
+export { useSegmentEdit } from "./useSegmentEdit";
