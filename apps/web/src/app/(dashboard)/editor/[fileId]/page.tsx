@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSegmentsStore } from "@/stores";
 import { useSegmentEdit } from "@/hooks";
@@ -36,9 +36,14 @@ export default function EditorPage() {
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
 
   // Segment store
   const setSegments = useSegmentsStore((s) => s.setSegments);
+  const updateSegment = useSegmentsStore((s) => s.updateSegment);
+  const removeSegment = useSegmentsStore((s) => s.removeSegment);
+  const clearSelection = useSegmentsStore((s) => s.clearSelection);
+  const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
 
   // Segment edit hook with automatic score recalculation
   const {
@@ -94,6 +99,61 @@ export default function EditorPage() {
     // Will be implemented with export modal
     console.log("Export clicked");
   };
+
+  // Handle merge segments
+  const handleMergeSegments = useCallback(
+    async (segmentIds: string[]) => {
+      if (segmentIds.length !== 2) return;
+
+      try {
+        setIsMerging(true);
+
+        const response = await fetch("/api/segments/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ segmentIds }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to merge segments");
+        }
+
+        const data = await response.json();
+
+        // Update the first segment in the store
+        if (data.segment) {
+          updateSegment(data.segment.id, data.segment);
+        }
+
+        // Remove the second segment from the store
+        if (data.deletedSegmentId) {
+          removeSegment(data.deletedSegmentId);
+        }
+
+        // Clear selection
+        clearSelection();
+
+        // Recalculate score and alerts
+        const recalcResponse = await fetch(`/api/files/${fileId}/recalculate`, {
+          method: "POST",
+        });
+
+        if (recalcResponse.ok) {
+          const recalcData = await recalcResponse.json();
+          if (recalcData.alerts) {
+            refreshAllAlerts(recalcData.alerts);
+          }
+        }
+      } catch (err) {
+        console.error("Error merging segments:", err);
+        // Could show a toast notification here
+      } finally {
+        setIsMerging(false);
+      }
+    },
+    [fileId, updateSegment, removeSegment, clearSelection, refreshAllAlerts]
+  );
 
   // Loading state
   if (isLoading) {
@@ -158,7 +218,10 @@ export default function EditorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Segment list */}
         <div className="flex-1 overflow-hidden">
-          <SegmentList />
+          <SegmentList
+            onMergeSegments={handleMergeSegments}
+            isMerging={isMerging}
+          />
         </div>
 
         {/* Video player panel (placeholder) */}

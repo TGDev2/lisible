@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { useSegmentsStore } from "@/stores";
 import { useKeyboardNavigation } from "@/hooks";
 import { SegmentRow } from "./SegmentRow";
-import { Loader2 } from "lucide-react";
+import { Loader2, Merge } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface SegmentListProps {
   className?: string;
@@ -14,6 +15,10 @@ interface SegmentListProps {
   estimatedRowHeight?: number;
   /** Whether to auto-scroll to active segment */
   autoScrollToActive?: boolean;
+  /** Callback when merge is requested */
+  onMergeSegments?: (segmentIds: string[]) => void;
+  /** Whether merge is in progress */
+  isMerging?: boolean;
 }
 
 /**
@@ -30,9 +35,12 @@ export function SegmentList({
   className,
   estimatedRowHeight = 100,
   autoScrollToActive = true,
+  onMergeSegments,
+  isMerging = false,
 }: SegmentListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const scrollingRef = useRef(false);
+  const lastClickedIndexRef = useRef<number | null>(null);
 
   // Get state from store
   const segments = useSegmentsStore((state) => state.segments);
@@ -42,6 +50,14 @@ export function SegmentList({
   const editingSegmentId = useSegmentsStore((state) => state.editingSegmentId);
   const startEditing = useSegmentsStore((state) => state.startEditing);
 
+  // Multi-selection state
+  const selectedSegmentIds = useSegmentsStore((state) => state.selectedSegmentIds);
+  const selectRange = useSegmentsStore((state) => state.selectRange);
+  const toggleSegmentSelection = useSegmentsStore((state) => state.toggleSegmentSelection);
+  const clearSelection = useSegmentsStore((state) => state.clearSelection);
+  const canMergeSelection = useSegmentsStore((state) => state.canMergeSelection);
+  const getSelectedSegments = useSegmentsStore((state) => state.getSelectedSegments);
+
   // Handle Enter key to start editing active segment
   const handleEnterActiveSegment = useCallback(() => {
     const activeSegment = segments[activeIndex];
@@ -50,10 +66,27 @@ export function SegmentList({
     }
   }, [segments, activeIndex, startEditing]);
 
+  // Handle merge button click
+  const handleMerge = useCallback(() => {
+    const { canMerge } = canMergeSelection();
+    if (canMerge && onMergeSegments) {
+      const selectedSegs = getSelectedSegments();
+      // Sort by sequenceNum to ensure correct order
+      const sortedIds = selectedSegs
+        .sort((a, b) => a.sequenceNum - b.sequenceNum)
+        .map((s) => s.id);
+      onMergeSegments(sortedIds);
+    }
+  }, [canMergeSelection, getSelectedSegments, onMergeSegments]);
+
+  // Check merge availability
+  const mergeStatus = canMergeSelection();
+
   // Keyboard navigation hook
   const { setIsEditing } = useKeyboardNavigation({
     enabled: true,
     onEnterActiveSegment: handleEnterActiveSegment,
+    onMergeSegments: handleMerge,
     containerRef: parentRef,
   });
 
@@ -72,12 +105,26 @@ export function SegmentList({
 
   const virtualItems = virtualizer.getVirtualItems();
 
-  // Handle segment click
+  // Handle segment click with Shift+Click support for range selection
   const handleSegmentClick = useCallback(
-    (index: number) => {
-      setActiveIndex(index);
+    (index: number, event?: React.MouseEvent) => {
+      if (event?.shiftKey && lastClickedIndexRef.current !== null) {
+        // Shift+Click: select range from last clicked to current
+        selectRange(lastClickedIndexRef.current, index);
+      } else if (event?.ctrlKey || event?.metaKey) {
+        // Ctrl/Cmd+Click: toggle selection
+        const segment = segments[index];
+        if (segment) {
+          toggleSegmentSelection(segment.id);
+        }
+      } else {
+        // Normal click: clear selection and set active
+        clearSelection();
+        setActiveIndex(index);
+      }
+      lastClickedIndexRef.current = index;
     },
-    [setActiveIndex]
+    [setActiveIndex, selectRange, toggleSegmentSelection, clearSelection, segments]
   );
 
   // Auto-scroll to active segment when it changes
@@ -157,59 +204,94 @@ export function SegmentList({
   }
 
   return (
-    <div
-      ref={parentRef}
-      className={cn(
-        "h-full overflow-auto focus:outline-none",
-        className
+    <div className={cn("flex flex-col h-full", className)}>
+      {/* Merge toolbar - shown when segments are selected */}
+      {selectedSegmentIds.size > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/50">
+          <span className="text-sm text-muted-foreground">
+            {selectedSegmentIds.size} segment{selectedSegmentIds.size > 1 ? "s" : ""} sélectionné{selectedSegmentIds.size > 1 ? "s" : ""}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleMerge}
+            disabled={!mergeStatus.canMerge || isMerging}
+            title={mergeStatus.error ?? "Fusionner les segments (Ctrl+M)"}
+          >
+            {isMerging ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Merge className="h-4 w-4 mr-1" />
+            )}
+            Fusionner
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearSelection}
+          >
+            Annuler
+          </Button>
+          {mergeStatus.error && (
+            <span className="text-xs text-destructive">{mergeStatus.error}</span>
+          )}
+        </div>
       )}
-      role="listbox"
-      tabIndex={0}
-      aria-label="Liste des segments"
-      aria-activedescendant={
-        segments[activeIndex]
-          ? `segment-${segments[activeIndex].id}`
-          : undefined
-      }
-    >
-      {/* Virtualized container */}
+
+      {/* Segment list */}
       <div
-        style={{
-          height: `${virtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
+        ref={parentRef}
+        className="flex-1 overflow-auto focus:outline-none"
+        role="listbox"
+        tabIndex={0}
+        aria-label="Liste des segments"
+        aria-activedescendant={
+          segments[activeIndex]
+            ? `segment-${segments[activeIndex].id}`
+            : undefined
+        }
       >
-        {virtualItems.map((virtualItem) => {
-          const segment = segments[virtualItem.index];
-          if (!segment) return null;
+        {/* Virtualized container */}
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+          }}
+        >
+          {virtualItems.map((virtualItem) => {
+            const segment = segments[virtualItem.index];
+            if (!segment) return null;
 
-          const isActive = virtualItem.index === activeIndex;
+            const isActive = virtualItem.index === activeIndex;
+            const isSelected = selectedSegmentIds.has(segment.id);
 
-          return (
-            <div
-              key={segment.id}
-              id={`segment-${segment.id}`}
-              role="option"
-              aria-selected={isActive}
-              data-index={virtualItem.index}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualItem.start}px)`,
-              }}
-              ref={virtualizer.measureElement}
-            >
-              <SegmentRow
-                segment={segment}
-                isActive={isActive}
-                onClick={() => handleSegmentClick(virtualItem.index)}
-              />
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={segment.id}
+                id={`segment-${segment.id}`}
+                role="option"
+                aria-selected={isActive || isSelected}
+                data-index={virtualItem.index}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+                ref={virtualizer.measureElement}
+              >
+                <SegmentRow
+                  segment={segment}
+                  isActive={isActive}
+                  isSelected={isSelected}
+                  onClick={(e: React.MouseEvent) => handleSegmentClick(virtualItem.index, e)}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

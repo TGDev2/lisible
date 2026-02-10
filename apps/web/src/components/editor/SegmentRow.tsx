@@ -12,7 +12,8 @@ import { SpeakerDropdown } from "./SpeakerDropdown";
 interface SegmentRowProps {
   segment: SegmentWithAlerts;
   isActive: boolean;
-  onClick?: () => void;
+  isSelected?: boolean;
+  onClick?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
 }
 
@@ -160,6 +161,7 @@ const AutoResizeTextarea = memo(function AutoResizeTextarea({
 export const SegmentRow = memo(function SegmentRow({
   segment,
   isActive,
+  isSelected = false,
   onClick,
   style,
 }: SegmentRowProps) {
@@ -453,14 +455,14 @@ export const SegmentRow = memo(function SegmentRow({
   const handleRowClick = useCallback(
     (e: React.MouseEvent) => {
       const target = e.target as HTMLElement;
-      // If clicking on the text area, enter text edit mode
-      if (target.closest("[data-text-content]")) {
+      // If clicking on the text area, enter text edit mode (only without Shift)
+      if (target.closest("[data-text-content]") && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         enterTextEditMode();
-      } else if (target.closest("[data-timecode]")) {
+      } else if (target.closest("[data-timecode]") && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         // If clicking on timecode, enter timecode edit mode
         enterTimecodeEditMode();
       } else if (!isEditing) {
-        onClick?.();
+        onClick?.(e);
       }
     },
     [enterTextEditMode, enterTimecodeEditMode, isEditing, onClick]
@@ -474,9 +476,9 @@ export const SegmentRow = memo(function SegmentRow({
       if (isEditing) return;
 
       if (e.key === " ") {
-        // Space selects the segment
+        // Space selects the segment - create synthetic mouse event
         e.preventDefault();
-        onClick?.();
+        onClick?.(e as unknown as React.MouseEvent);
       }
       // Enter and Tab are now handled by the keyboard navigation hook at the list level
     },
@@ -495,6 +497,7 @@ export const SegmentRow = memo(function SegmentRow({
         "flex items-start gap-3 px-3 py-2 border-b border-border cursor-pointer transition-colors",
         "hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         isActive && "bg-primary/10 border-l-2 border-l-primary ring-2 ring-primary/50 ring-inset",
+        isSelected && !isActive && "bg-blue-50 dark:bg-blue-950/30 border-l-2 border-l-blue-500",
         isEditing && "bg-muted/30 ring-0"
       )}
     >

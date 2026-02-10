@@ -15,6 +15,9 @@ interface SegmentsState {
   // Active segment
   activeIndex: number;
 
+  // Multi-selection (for merge)
+  selectedSegmentIds: Set<string>;
+
   // Editing state
   editingSegmentId: string | null;
 
@@ -29,6 +32,16 @@ interface SegmentsState {
   refreshAllAlerts: (alerts: Alert[]) => void;
   clearSegments: () => void;
   setLoading: (isLoading: boolean) => void;
+  removeSegment: (segmentId: string) => void;
+
+  // Multi-selection
+  selectSegment: (segmentId: string) => void;
+  toggleSegmentSelection: (segmentId: string) => void;
+  selectRange: (fromIndex: number, toIndex: number) => void;
+  clearSelection: () => void;
+  isSegmentSelected: (segmentId: string) => boolean;
+  getSelectedSegments: () => SegmentWithAlerts[];
+  canMergeSelection: () => { canMerge: boolean; error?: string };
 
   // Editing
   startEditing: (segmentId: string) => void;
@@ -53,6 +66,7 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
   segments: [],
   fileId: null,
   activeIndex: 0,
+  selectedSegmentIds: new Set<string>(),
   editingSegmentId: null,
   isLoading: false,
 
@@ -62,6 +76,7 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
       segments,
       fileId,
       activeIndex: 0,
+      selectedSegmentIds: new Set<string>(),
       editingSegmentId: null,
     }),
 
@@ -111,9 +126,100 @@ export const useSegmentsStore = create<SegmentsState>((set, get) => ({
       segments: [],
       fileId: null,
       activeIndex: 0,
+      selectedSegmentIds: new Set<string>(),
     }),
 
   setLoading: (isLoading) => set({ isLoading }),
+
+  removeSegment: (segmentId) =>
+    set((state) => {
+      const newSegments = state.segments.filter((seg) => seg.id !== segmentId);
+      const newSelectedIds = new Set(state.selectedSegmentIds);
+      newSelectedIds.delete(segmentId);
+
+      // Adjust activeIndex if needed
+      let newActiveIndex = state.activeIndex;
+      if (newActiveIndex >= newSegments.length && newSegments.length > 0) {
+        newActiveIndex = newSegments.length - 1;
+      }
+
+      return {
+        segments: newSegments,
+        selectedSegmentIds: newSelectedIds,
+        activeIndex: newActiveIndex,
+      };
+    }),
+
+  // Multi-selection
+  selectSegment: (segmentId) =>
+    set(() => ({
+      selectedSegmentIds: new Set([segmentId]),
+    })),
+
+  toggleSegmentSelection: (segmentId) =>
+    set((state) => {
+      const newSet = new Set(state.selectedSegmentIds);
+      if (newSet.has(segmentId)) {
+        newSet.delete(segmentId);
+      } else {
+        newSet.add(segmentId);
+      }
+      return { selectedSegmentIds: newSet };
+    }),
+
+  selectRange: (fromIndex, toIndex) =>
+    set((state) => {
+      const start = Math.min(fromIndex, toIndex);
+      const end = Math.max(fromIndex, toIndex);
+      const newSet = new Set<string>();
+      for (let i = start; i <= end; i++) {
+        const segment = state.segments[i];
+        if (segment) {
+          newSet.add(segment.id);
+        }
+      }
+      return { selectedSegmentIds: newSet };
+    }),
+
+  clearSelection: () => set({ selectedSegmentIds: new Set<string>() }),
+
+  isSegmentSelected: (segmentId) => get().selectedSegmentIds.has(segmentId),
+
+  getSelectedSegments: () => {
+    const { segments, selectedSegmentIds } = get();
+    return segments.filter((seg) => selectedSegmentIds.has(seg.id));
+  },
+
+  canMergeSelection: () => {
+    const { segments, selectedSegmentIds } = get();
+
+    // Need exactly 2 segments selected
+    if (selectedSegmentIds.size !== 2) {
+      return { canMerge: false, error: "Sélectionnez exactement 2 segments" };
+    }
+
+    // Get indices of selected segments
+    const selectedIndices: number[] = [];
+    segments.forEach((seg, idx) => {
+      if (selectedSegmentIds.has(seg.id)) {
+        selectedIndices.push(idx);
+      }
+    });
+
+    // Check if consecutive
+    if (selectedIndices.length !== 2) {
+      return { canMerge: false, error: "Segments non trouvés" };
+    }
+
+    const sortedIndices = selectedIndices.sort((a, b) => a - b);
+    const first = sortedIndices[0];
+    const second = sortedIndices[1];
+    if (first === undefined || second === undefined || second - first !== 1) {
+      return { canMerge: false, error: "Les segments doivent être consécutifs" };
+    }
+
+    return { canMerge: true };
+  },
 
   // Editing
   startEditing: (segmentId) => set({ editingSegmentId: segmentId }),

@@ -12,6 +12,10 @@ interface UseKeyboardNavigationOptions {
    */
   onEnterActiveSegment?: () => void;
   /**
+   * Callback when Ctrl+M is pressed (merge segments)
+   */
+  onMergeSegments?: () => void;
+  /**
    * External ref to attach keyboard listeners to
    * If not provided, events are attached to the document
    */
@@ -44,6 +48,7 @@ interface UseKeyboardNavigationReturn {
 export function useKeyboardNavigation({
   enabled = true,
   onEnterActiveSegment,
+  onMergeSegments,
   containerRef,
 }: UseKeyboardNavigationOptions = {}): UseKeyboardNavigationReturn {
   const isEditingRef = useRef(false);
@@ -114,11 +119,20 @@ export function useKeyboardNavigation({
           }
           break;
 
+        case "m":
+        case "M":
+          // Ctrl+M or Cmd+M: merge selected segments
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            onMergeSegments?.();
+          }
+          break;
+
         default:
           break;
       }
     },
-    [enabled, segments.length, goToNextSegment, goToPreviousSegment, onEnterActiveSegment]
+    [enabled, segments.length, goToNextSegment, goToPreviousSegment, onEnterActiveSegment, onMergeSegments]
   );
 
   /**
