@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useSegmentsStore } from "@/stores";
+import { useSegmentsStore, useHistoryStore } from "@/stores";
 import type { Segment } from "@sme-studio/db";
 
 export type MutationStatus = "idle" | "pending" | "success" | "error";
@@ -30,6 +30,9 @@ export function useSegmentMutation() {
 
   const updateSegment = useSegmentsStore((s) => s.updateSegment);
   const getSegmentById = useSegmentsStore((s) => s.getSegmentById);
+  const segments = useSegmentsStore((s) => s.segments);
+  const activeIndex = useSegmentsStore((s) => s.activeIndex);
+  const recordSnapshot = useHistoryStore((s) => s.recordSnapshot);
 
   // Track pending mutations for debouncing
   const pendingMutationsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -81,21 +84,26 @@ export function useSegmentMutation() {
    * Update a segment optimistically with API persistence
    * @param segmentId - The segment ID to update
    * @param updates - The updates to apply
-   * @param options - Options for debouncing
+   * @param options - Options for debouncing and history
    */
   const mutateSegment = useCallback(
     async (
       segmentId: string,
       updates: UpdateSegmentParams,
-      options: { debounceMs?: number } = {}
+      options: { debounceMs?: number; skipHistory?: boolean } = {}
     ): Promise<boolean> => {
-      const { debounceMs = 0 } = options;
+      const { debounceMs = 0, skipHistory = false } = options;
 
       // Clear any pending debounced mutation for this segment
       const existingTimeout = pendingMutationsRef.current.get(segmentId);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
         pendingMutationsRef.current.delete(segmentId);
+      }
+
+      // Record history snapshot BEFORE the mutation (only if not already stored for this edit session)
+      if (!skipHistory && !originalValuesRef.current.has(segmentId)) {
+        recordSnapshot(segments, activeIndex);
       }
 
       // Store original values for potential rollback (only if not already stored)
@@ -131,7 +139,7 @@ export function useSegmentMutation() {
       // Persist immediately
       return persistUpdate(segmentId, updates);
     },
-    [updateSegment, getSegmentById, persistUpdate]
+    [updateSegment, getSegmentById, persistUpdate, recordSnapshot, segments, activeIndex]
   );
 
   /**

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSegmentsStore } from "@/stores";
-import { useSegmentEdit } from "@/hooks";
+import { useSegmentsStore, useHistoryStore } from "@/stores";
+import { useSegmentEdit, useUndoRedo } from "@/hooks";
 import { EditorHeader, SegmentList } from "@/components/editor";
 import type { Alert, Segment } from "@sme-studio/db";
 
@@ -48,6 +48,9 @@ export default function EditorPage() {
   const insertSegmentAfter = useSegmentsStore((s) => s.insertSegmentAfter);
   const stopEditing = useSegmentsStore((s) => s.stopEditing);
 
+  // History store
+  const clearHistory = useHistoryStore((s) => s.clearHistory);
+
   // Segment edit hook with automatic score recalculation
   const {
     score,
@@ -57,6 +60,55 @@ export default function EditorPage() {
     scoreChanged,
     scoreDelta,
   } = useSegmentEdit({ fileId });
+
+  // Undo/Redo hook
+  const {
+    undo,
+    redo,
+    recordSnapshot,
+    canUndo,
+    canRedo,
+  } = useUndoRedo({ fileId });
+
+  // Handle Ctrl+Z (undo) and Ctrl+Y (redo) keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      // Skip if focus is on an input, textarea, or contenteditable
+      const target = event.target as HTMLElement;
+      const isInputFocused =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      if (isInputFocused) return;
+
+      // Ctrl+Z or Cmd+Z: Undo
+      if ((event.ctrlKey || event.metaKey) && event.key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        if (canUndo) {
+          await undo();
+        }
+        return;
+      }
+
+      // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z: Redo
+      if (
+        ((event.ctrlKey || event.metaKey) && event.key === "y") ||
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "z")
+      ) {
+        event.preventDefault();
+        if (canRedo) {
+          await redo();
+        }
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [undo, redo, canUndo, canRedo]);
 
   // Fetch file data on mount
   useEffect(() => {
@@ -76,6 +128,9 @@ export default function EditorPage() {
         setFileData(data);
         setSegments(data.segments, data.id);
 
+        // Clear history when loading a new file
+        clearHistory(data.id);
+
         // Set initial score for the hook
         if (data.smeScore !== null) {
           setInitialScore(data.smeScore);
@@ -90,7 +145,7 @@ export default function EditorPage() {
     if (fileId) {
       fetchFileData();
     }
-  }, [fileId, setSegments, setInitialScore]);
+  }, [fileId, setSegments, setInitialScore, clearHistory]);
 
   // Handle back navigation
   const handleBack = () => {
@@ -110,6 +165,9 @@ export default function EditorPage() {
 
       try {
         setIsMerging(true);
+
+        // Record snapshot for undo BEFORE the merge
+        recordSnapshot();
 
         const response = await fetch("/api/segments/merge", {
           method: "POST",
@@ -155,7 +213,7 @@ export default function EditorPage() {
         setIsMerging(false);
       }
     },
-    [fileId, updateSegment, removeSegment, clearSelection, refreshAllAlerts]
+    [fileId, updateSegment, removeSegment, clearSelection, refreshAllAlerts, recordSnapshot]
   );
 
   // Handle split segment
@@ -163,6 +221,9 @@ export default function EditorPage() {
     async (segmentId: string, cursorPosition: number) => {
       try {
         setIsSplitting(true);
+
+        // Record snapshot for undo BEFORE the split
+        recordSnapshot();
 
         const response = await fetch("/api/segments/split", {
           method: "POST",
@@ -207,7 +268,7 @@ export default function EditorPage() {
         setIsSplitting(false);
       }
     },
-    [fileId, insertSegmentAfter, stopEditing, refreshAllAlerts]
+    [fileId, insertSegmentAfter, stopEditing, refreshAllAlerts, recordSnapshot]
   );
 
   // Loading state

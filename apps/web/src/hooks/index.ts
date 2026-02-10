@@ -27,3 +27,5 @@ export type {
 } from "./useScoreRecalculation";
 
 export { useSegmentEdit } from "./useSegmentEdit";
+
+export { useUndoRedo } from "./useUndoRedo";
