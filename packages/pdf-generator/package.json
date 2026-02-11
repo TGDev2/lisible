@@ -7,14 +7,21 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@react-pdf/renderer": "^3.4.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0"
+  },
   "devDependencies": {
     "@sme-studio/eslint-config": "workspace:*",
     "@sme-studio/typescript-config": "workspace:*",
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
     "typescript": "^5.3.0",
     "vitest": "^1.0.0"
   }
