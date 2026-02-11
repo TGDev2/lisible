@@ -127,7 +127,7 @@ export function SegmentList({
           toggleSegmentSelection(segment.id);
         }
       } else {
-        // Normal click: clear selection, set active, and seek video (E7-S3.1)
+        // Normal click: clear selection, set active, and seek video
         clearSelection();
         setActiveIndex(index);
         onSegmentClick?.(index);
@@ -138,14 +138,14 @@ export function SegmentList({
   );
 
   // Auto-scroll to active segment when it changes
-  // E7-S3.3: Disable auto-scroll during editing to avoid disruption
+  // Disable auto-scroll during editing to avoid disruption
   useEffect(() => {
     if (!autoScrollToActive || segments.length === 0) return;
 
     // Prevent scroll loop - don't auto-scroll if user is scrolling
     if (scrollingRef.current) return;
 
-    // Don't auto-scroll while editing (Risk/Edge Case from E7-S3)
+    // Don't auto-scroll while editing
     if (editingSegmentId !== null) return;
 
     // Use a small delay to ensure the virtualizer has updated

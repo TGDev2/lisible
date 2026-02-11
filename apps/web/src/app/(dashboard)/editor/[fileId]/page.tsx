@@ -124,7 +124,7 @@ export default function EditorPage() {
     };
   }, [undo, redo, canUndo, canRedo]);
 
-  // E7-S3.2: Sync activeIndex with video playback (timeupdate → activeSegmentIndex)
+  // Sync activeIndex with video playback (timeupdate → activeSegmentIndex)
   // Skip update while editing to avoid scroll disruption (Risk/Edge Case)
   useEffect(() => {
     if (editingSegmentId !== null) return; // Don't update during editing
@@ -143,7 +143,7 @@ export default function EditorPage() {
     }
   }, [currentTime, segments, activeIndex, setActiveIndex, editingSegmentId]);
 
-  // E7-S3.1: Handle segment click → seek video to timecode
+  // Handle segment click → seek video to timecode
   const handleSegmentSeek = useCallback((index: number) => {
     const segment = segments[index];
     if (segment) {

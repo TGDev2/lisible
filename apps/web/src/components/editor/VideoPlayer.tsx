@@ -117,6 +117,16 @@ export function VideoPlayer({
     }
   }, [isMuted, volume]);
 
+  // Handle seek (jump forward/backward by seconds)
+  const seek = useCallback((deltaSeconds: number) => {
+    const video = videoRef.current;
+    if (!video || error) return;
+
+    const newTime = Math.max(0, Math.min(video.duration, video.currentTime + deltaSeconds));
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
+  }, [error]);
+
   // Handle progress bar click for seeking
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const video = videoRef.current;
@@ -218,6 +228,21 @@ export function VideoPlayer({
           e.preventDefault();
           togglePlayPause();
           break;
+        case "k": // K for play/pause (alternative)
+        case "K":
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case "j": // J for -5 seconds
+        case "J":
+          e.preventDefault();
+          seek(-5);
+          break;
+        case "l": // L for +5 seconds
+        case "L":
+          e.preventDefault();
+          seek(5);
+          break;
         case "m": // M for mute
         case "M":
           toggleMute();
@@ -227,7 +252,7 @@ export function VideoPlayer({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [togglePlayPause, toggleMute]);
+  }, [togglePlayPause, toggleMute, seek]);
 
   // Calculate progress percentage
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
