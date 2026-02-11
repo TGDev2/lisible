@@ -43,10 +43,15 @@ export default function EditorPage() {
 
   // Video playback state for subtitle synchronization
   const [currentTime, setCurrentTime] = useState(0);
+  // Seek target for video when clicking on a segment
+  const [seekToTime, setSeekToTime] = useState<number | null>(null);
 
   // Segment store
   const setSegments = useSegmentsStore((s) => s.setSegments);
   const segments = useSegmentsStore((s) => s.segments);
+  const activeIndex = useSegmentsStore((s) => s.activeIndex);
+  const setActiveIndex = useSegmentsStore((s) => s.setActiveIndex);
+  const editingSegmentId = useSegmentsStore((s) => s.editingSegmentId);
   const updateSegment = useSegmentsStore((s) => s.updateSegment);
   const removeSegment = useSegmentsStore((s) => s.removeSegment);
   const clearSelection = useSegmentsStore((s) => s.clearSelection);
@@ -118,6 +123,34 @@ export default function EditorPage() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [undo, redo, canUndo, canRedo]);
+
+  // E7-S3.2: Sync activeIndex with video playback (timeupdate → activeSegmentIndex)
+  // Skip update while editing to avoid scroll disruption (Risk/Edge Case)
+  useEffect(() => {
+    if (editingSegmentId !== null) return; // Don't update during editing
+    if (!segments.length) return;
+
+    const currentTimeMs = currentTime * 1000;
+
+    // Find the segment index that contains the current time
+    const newActiveIndex = segments.findIndex(
+      (seg) => currentTimeMs >= seg.startMs && currentTimeMs < seg.endMs
+    );
+
+    // Only update if we found a valid segment and it's different from current
+    if (newActiveIndex !== -1 && newActiveIndex !== activeIndex) {
+      setActiveIndex(newActiveIndex);
+    }
+  }, [currentTime, segments, activeIndex, setActiveIndex, editingSegmentId]);
+
+  // E7-S3.1: Handle segment click → seek video to timecode
+  const handleSegmentSeek = useCallback((index: number) => {
+    const segment = segments[index];
+    if (segment) {
+      // Convert milliseconds to seconds for video player
+      setSeekToTime(segment.startMs / 1000);
+    }
+  }, [segments]);
 
   // Fetch file data on mount
   useEffect(() => {
@@ -348,6 +381,7 @@ export default function EditorPage() {
             isMerging={isMerging}
             onSplitSegment={handleSplitSegment}
             isSplitting={isSplitting}
+            onSegmentClick={handleSegmentSeek}
           />
         </div>
 
@@ -358,6 +392,7 @@ export default function EditorPage() {
             <VideoPlayer
               src={fileData.videoUrl}
               onTimeUpdate={setCurrentTime}
+              seekTo={seekToTime}
             />
             {/* Subtitle overlay synchronized with video playback */}
             <SubtitleOverlay

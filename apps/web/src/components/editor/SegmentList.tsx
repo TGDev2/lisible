@@ -23,6 +23,8 @@ interface SegmentListProps {
   onSplitSegment?: (segmentId: string, cursorPosition: number) => void;
   /** Whether split is in progress */
   isSplitting?: boolean;
+  /** Callback when a segment is clicked (for video sync) */
+  onSegmentClick?: (index: number) => void;
 }
 
 /**
@@ -43,6 +45,7 @@ export function SegmentList({
   isMerging = false,
   onSplitSegment,
   isSplitting = false,
+  onSegmentClick,
 }: SegmentListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const scrollingRef = useRef(false);
@@ -124,21 +127,26 @@ export function SegmentList({
           toggleSegmentSelection(segment.id);
         }
       } else {
-        // Normal click: clear selection and set active
+        // Normal click: clear selection, set active, and seek video (E7-S3.1)
         clearSelection();
         setActiveIndex(index);
+        onSegmentClick?.(index);
       }
       lastClickedIndexRef.current = index;
     },
-    [setActiveIndex, selectRange, toggleSegmentSelection, clearSelection, segments]
+    [setActiveIndex, selectRange, toggleSegmentSelection, clearSelection, segments, onSegmentClick]
   );
 
   // Auto-scroll to active segment when it changes
+  // E7-S3.3: Disable auto-scroll during editing to avoid disruption
   useEffect(() => {
     if (!autoScrollToActive || segments.length === 0) return;
 
     // Prevent scroll loop - don't auto-scroll if user is scrolling
     if (scrollingRef.current) return;
+
+    // Don't auto-scroll while editing (Risk/Edge Case from E7-S3)
+    if (editingSegmentId !== null) return;
 
     // Use a small delay to ensure the virtualizer has updated
     const timeoutId = setTimeout(() => {
@@ -149,7 +157,7 @@ export function SegmentList({
     }, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [activeIndex, autoScrollToActive, segments.length, virtualizer]);
+  }, [activeIndex, autoScrollToActive, segments.length, virtualizer, editingSegmentId]);
 
   // Track user scrolling to prevent auto-scroll conflicts
   useEffect(() => {
