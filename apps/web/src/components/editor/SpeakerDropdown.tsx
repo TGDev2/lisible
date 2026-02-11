@@ -33,11 +33,6 @@ function normalizeSpeaker(name: string): string {
  * - "Nouveau locuteur..." option for custom speaker
  * - "Aucun" option to remove speaker
  * - Normalizes speaker names to uppercase
- *
- * Acceptance Criteria (E6-S6):
- * - [x] Dropdown avec locuteurs existants
- * - [x] Option "Nouveau locuteur..."
- * - [x] Affichage [LOCUTEUR] en préfixe segment (handled in SegmentRow)
  */
 export function SpeakerDropdown({
   currentSpeaker,

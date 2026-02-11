@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSegmentsStore, useHistoryStore } from "@/stores";
-import { useSegmentEdit, useUndoRedo } from "@/hooks";
-import { EditorHeader, SegmentList, VideoPlayer } from "@/components/editor";
+import { useSegmentEdit, useUndoRedo, useCurrentSegment } from "@/hooks";
+import { EditorHeader, SegmentList, VideoPlayer, SubtitleOverlay } from "@/components/editor";
 import type { Alert, Segment } from "@sme-studio/db";
 
 interface SegmentWithAlerts extends Segment {
@@ -41,14 +41,21 @@ export default function EditorPage() {
   const [isMerging, setIsMerging] = useState(false);
   const [isSplitting, setIsSplitting] = useState(false);
 
+  // Video playback state for subtitle synchronization
+  const [currentTime, setCurrentTime] = useState(0);
+
   // Segment store
   const setSegments = useSegmentsStore((s) => s.setSegments);
+  const segments = useSegmentsStore((s) => s.segments);
   const updateSegment = useSegmentsStore((s) => s.updateSegment);
   const removeSegment = useSegmentsStore((s) => s.removeSegment);
   const clearSelection = useSegmentsStore((s) => s.clearSelection);
   const refreshAllAlerts = useSegmentsStore((s) => s.refreshAllAlerts);
   const insertSegmentAfter = useSegmentsStore((s) => s.insertSegmentAfter);
   const stopEditing = useSegmentsStore((s) => s.stopEditing);
+
+  // Get current segment for subtitle overlay
+  const currentSegment = useCurrentSegment(currentTime, segments);
 
   // History store
   const clearHistory = useHistoryStore((s) => s.clearHistory);
@@ -346,9 +353,18 @@ export default function EditorPage() {
 
         {/* Video player panel */}
         <div className="w-[400px] border-l bg-muted/30 p-4">
-          <VideoPlayer
-            src={fileData.videoUrl}
-          />
+          {/* Video with subtitle overlay */}
+          <div className="relative">
+            <VideoPlayer
+              src={fileData.videoUrl}
+              onTimeUpdate={setCurrentTime}
+            />
+            {/* Subtitle overlay synchronized with video playback */}
+            <SubtitleOverlay
+              text={currentSegment?.text ?? null}
+              speaker={currentSegment?.speaker}
+            />
+          </div>
           <div className="mt-4">
             <h3 className="font-medium">Segment actif</h3>
             <p className="text-sm text-muted-foreground mt-2">

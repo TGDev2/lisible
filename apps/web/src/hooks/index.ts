@@ -29,3 +29,5 @@ export type {
 export { useSegmentEdit } from "./useSegmentEdit";
 
 export { useUndoRedo } from "./useUndoRedo";
+
+export { useCurrentSegment } from "./useCurrentSegment";

@@ -5,3 +5,4 @@ export { SpeakerDropdown } from "./SpeakerDropdown";
 export { TimecodeInput } from "./TimecodeInput";
 export { EditorHeader } from "./EditorHeader";
 export { VideoPlayer } from "./VideoPlayer";
+export { SubtitleOverlay } from "./SubtitleOverlay";
