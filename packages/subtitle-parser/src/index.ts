@@ -21,3 +21,6 @@ export {
   formatSrtTimecode,
   formatVttTimecode,
 } from './timecode';
+
+// SRT generation
+export { generateSRT, UTF8_BOM } from './generate-srt';
