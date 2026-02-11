@@ -24,3 +24,6 @@ export {
 
 // SRT generation
 export { generateSRT, UTF8_BOM } from './generate-srt';
+
+// VTT generation
+export { generateVTT } from './generate-vtt';
