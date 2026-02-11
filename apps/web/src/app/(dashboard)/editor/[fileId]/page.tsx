@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSegmentsStore, useHistoryStore } from "@/stores";
 import { useSegmentEdit, useUndoRedo } from "@/hooks";
-import { EditorHeader, SegmentList } from "@/components/editor";
+import { EditorHeader, SegmentList, VideoPlayer } from "@/components/editor";
 import type { Alert, Segment } from "@sme-studio/db";
 
 interface SegmentWithAlerts extends Segment {
@@ -14,7 +14,9 @@ interface SegmentWithAlerts extends Segment {
 interface FileData {
   id: string;
   originalName: string;
+  fileType: string;
   smeScore: number | null;
+  videoUrl: string | null;
   segments: SegmentWithAlerts[];
 }
 
@@ -342,11 +344,11 @@ export default function EditorPage() {
           />
         </div>
 
-        {/* Video player panel (placeholder) */}
+        {/* Video player panel */}
         <div className="w-[400px] border-l bg-muted/30 p-4">
-          <div className="aspect-video bg-black rounded-lg flex items-center justify-center text-white/50">
-            Video Player
-          </div>
+          <VideoPlayer
+            src={fileData.videoUrl}
+          />
           <div className="mt-4">
             <h3 className="font-medium">Segment actif</h3>
             <p className="text-sm text-muted-foreground mt-2">

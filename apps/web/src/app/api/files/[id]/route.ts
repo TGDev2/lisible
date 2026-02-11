@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getDb, files, segments, alerts, jobs, eq, and, asc } from "@sme-studio/db";
-import { deleteObject } from "@/lib/storage";
+import { deleteObject, getSignedUrl } from "@/lib/storage";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -74,6 +74,21 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       alerts: alertsBySegment.get(segment.id) ?? [],
     }));
 
+    // Generate signed URL for video/audio files
+    let videoUrl: string | null = null;
+    if (
+      file.storageKey &&
+      (file.fileType === "video" || file.fileType === "audio")
+    ) {
+      try {
+        // Generate signed URL with 2 hour expiration for video playback
+        videoUrl = await getSignedUrl(file.storageKey, { expiresIn: 7200 });
+      } catch (err) {
+        console.warn("Failed to generate signed URL for video:", err);
+        // Continue without video URL - player will show "unavailable" state
+      }
+    }
+
     return NextResponse.json({
       id: file.id,
       projectId: file.projectId,
@@ -84,6 +99,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       smeAnalyzedAt: file.smeAnalyzedAt,
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
+      durationSeconds: file.durationSeconds,
+      videoUrl,
       segments: segmentsWithAlerts,
     });
   } catch (error) {
