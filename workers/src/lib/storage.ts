@@ -8,6 +8,7 @@ import {
   type GetObjectCommandInput,
   type PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Scaleway S3-compatible configuration (Paris fr-par)
 const s3Client = new S3Client({
@@ -134,6 +135,25 @@ export async function uploadObject(
 
   const command = new PutObjectCommand(input);
   await s3Client.send(command);
+}
+
+/**
+ * Generate a signed URL for downloading a file
+ * @param key - The object key (path) in the bucket
+ * @param expiresIn - Expiration time in seconds (default: 24 hours)
+ * @returns The signed URL
+ */
+export async function getSignedUrl(
+  key: string,
+  expiresIn: number = 24 * 60 * 60 // 24 hours default
+): Promise<string> {
+  const input: GetObjectCommandInput = {
+    Bucket: BUCKET,
+    Key: key,
+  };
+
+  const command = new GetObjectCommand(input);
+  return awsGetSignedUrl(s3Client, command, { expiresIn });
 }
 
 export { s3Client, BUCKET };

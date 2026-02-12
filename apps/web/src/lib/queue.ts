@@ -22,6 +22,12 @@ export interface SMEJobData {
   storageKey: string;
 }
 
+export interface PDFJobData {
+  fileId: string;
+  userId: string;
+  subtitleFormat?: "srt" | "vtt";
+}
+
 // Parse Redis URL for connection options
 function getRedisConnection(): ConnectionOptions {
   const redisUrl = process.env.REDIS_URL;
@@ -45,6 +51,7 @@ function getRedisConnection(): ConnectionOptions {
 // Lazy initialization of queues
 let _sttQueue: Queue<STTJobData> | null = null;
 let _smeQueue: Queue<SMEJobData> | null = null;
+let _pdfQueue: Queue<PDFJobData> | null = null;
 
 function getSTTQueue(): Queue<STTJobData> {
   if (!_sttQueue) {
@@ -102,4 +109,83 @@ export async function enqueueSMEJob(data: SMEJobData): Promise<string> {
     jobId: `sme-${data.fileId}`,
   });
   return job.id ?? `sme-${data.fileId}`;
+}
+
+function getPDFQueue(): Queue<PDFJobData> {
+  if (!_pdfQueue) {
+    _pdfQueue = new Queue<PDFJobData>(QUEUE_NAMES.PDF, {
+      connection: getRedisConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 10_000,
+        },
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 500 },
+      },
+    });
+  }
+  return _pdfQueue;
+}
+
+/**
+ * Enqueue a PDF generation job
+ */
+export async function enqueuePDFJob(data: PDFJobData): Promise<string> {
+  const queue = getPDFQueue();
+  const jobId = `pdf-${data.fileId}-${Date.now()}`;
+  const job = await queue.add("generate", data, {
+    jobId,
+  });
+  return job.id ?? jobId;
+}
+
+/**
+ * Get PDF job status
+ */
+export async function getPDFJobStatus(jobId: string): Promise<{
+  status: "waiting" | "active" | "completed" | "failed" | "unknown";
+  progress?: number;
+  result?: {
+    storageKey: string;
+    signedUrl: string;
+    zipStorageKey?: string;
+    zipSignedUrl?: string;
+  };
+  error?: string;
+}> {
+  const queue = getPDFQueue();
+  const job = await queue.getJob(jobId);
+
+  if (!job) {
+    return { status: "unknown" };
+  }
+
+  const state = await job.getState();
+
+  if (state === "completed") {
+    return {
+      status: "completed",
+      progress: 100,
+      result: job.returnvalue as {
+        storageKey: string;
+        signedUrl: string;
+        zipStorageKey?: string;
+        zipSignedUrl?: string;
+      },
+    };
+  }
+
+  if (state === "failed") {
+    return {
+      status: "failed",
+      error: job.failedReason || "Erreur inconnue",
+    };
+  }
+
+  return {
+    status: state as "waiting" | "active",
+    progress: job.progress as number | undefined,
+  };
 }

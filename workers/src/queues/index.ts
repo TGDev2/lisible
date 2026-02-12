@@ -23,6 +23,8 @@ export interface SMEJobData {
 export interface PDFJobData {
   fileId: string;
   userId: string;
+  /** Optional subtitle format for combined ZIP export */
+  subtitleFormat?: 'srt' | 'vtt';
 }
 
 export interface CleanupJobData {
@@ -45,6 +47,10 @@ export interface SMEJobResult {
 export interface PDFJobResult {
   storageKey: string;
   signedUrl: string;
+  /** ZIP storage key if combined export was requested */
+  zipStorageKey?: string;
+  /** ZIP signed URL if combined export was requested */
+  zipSignedUrl?: string;
 }
 
 export interface CleanupJobResult {
