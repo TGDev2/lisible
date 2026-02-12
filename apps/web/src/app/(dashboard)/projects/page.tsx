@@ -143,7 +143,7 @@ export default function ProjectsPage() {
       }
 
       // Notify backend that upload is complete
-      await fetch(`/api/files/${fileId}/uploaded`, { method: "POST" });
+      await fetch(`/api/files/${fileId}/confirm`, { method: "POST" });
 
       // Refresh file list
       await fetchFiles();
