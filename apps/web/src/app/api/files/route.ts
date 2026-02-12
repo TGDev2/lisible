@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getDb, users, projects, files, eq } from "@sme-studio/db";
+import { getDb, users, projects, files, eq, desc, ne, and } from "@sme-studio/db";
 import { getSignedUploadUrl } from "@/lib/storage";
 import {
   createFileSchema,
@@ -9,6 +9,52 @@ import {
   validateDuration,
   type FileType,
 } from "@/lib/validations/files";
+
+/**
+ * GET /api/files
+ * List all files for the authenticated user (excluding deleted)
+ */
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Non authentifié" },
+        { status: 401 }
+      );
+    }
+
+    const db = getDb();
+    const userFiles = await db
+      .select({
+        id: files.id,
+        originalName: files.originalName,
+        fileType: files.fileType,
+        fileSizeBytes: files.fileSizeBytes,
+        status: files.status,
+        smeScore: files.smeScore,
+        createdAt: files.createdAt,
+        updatedAt: files.updatedAt,
+        durationSeconds: files.durationSeconds,
+      })
+      .from(files)
+      .where(
+        and(
+          eq(files.userId, session.user.id),
+          ne(files.status, "deleted")
+        )
+      )
+      .orderBy(desc(files.createdAt));
+
+    return NextResponse.json(userFiles);
+  } catch (error) {
+    console.error("Error listing files:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération des fichiers" },
+      { status: 500 }
+    );
+  }
+}
 
 // Presigned URL expiration: 15 minutes (900 seconds)
 const PRESIGNED_URL_EXPIRATION = 15 * 60;
