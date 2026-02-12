@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScoreBadge } from "@/components/shared/ScoreBadge";
+import { QuotaBadge } from "@/components/shared/QuotaBadge";
 import { DropZone, type AcceptedFile } from "@/components/upload/DropZone";
 import { cn } from "@/lib/utils";
 
@@ -172,9 +173,12 @@ export default function ProjectsPage() {
     <div className="container mx-auto max-w-4xl py-10 px-4">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Mes fichiers</h1>
-        <Button variant="outline" onClick={() => router.push("/settings")}>
-          Mon compte
-        </Button>
+        <div className="flex items-center gap-3">
+          <QuotaBadge />
+          <Button variant="outline" onClick={() => router.push("/settings")}>
+            Mon compte
+          </Button>
+        </div>
       </div>
 
       {/* Upload zone */}

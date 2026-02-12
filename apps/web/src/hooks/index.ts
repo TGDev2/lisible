@@ -31,3 +31,6 @@ export { useSegmentEdit } from "./useSegmentEdit";
 export { useUndoRedo } from "./useUndoRedo";
 
 export { useCurrentSegment } from "./useCurrentSegment";
+
+export { useQuota } from "./useQuota";
+export type { QuotaData, QuotaCredits, UseQuotaReturn } from "./useQuota";
