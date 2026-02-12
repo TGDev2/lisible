@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getDb, users, passwordResetTokens, eq, and, isNull } from "@sme-studio/db";
 import { z } from "zod";
 

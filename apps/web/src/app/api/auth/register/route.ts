@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getDb, users, eq } from "@sme-studio/db";
 import { registerSchema } from "@/lib/validations/auth";
 
