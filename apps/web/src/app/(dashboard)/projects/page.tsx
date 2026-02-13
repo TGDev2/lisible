@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { FileText, Film, Clock, AlertCircle } from "lucide-react";
+import { FileText, Film, Clock, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +16,22 @@ import { ScoreBadge } from "@/components/shared/ScoreBadge";
 import { QuotaBadge } from "@/components/shared/QuotaBadge";
 import { DropZone, type AcceptedFile } from "@/components/upload/DropZone";
 import { cn } from "@/lib/utils";
+
+// Average video bitrate for duration estimation (3 Mbps is typical web video)
+const AVERAGE_VIDEO_BITRATE_BPS = 3_000_000;
+
+/**
+ * Estimates video duration in seconds from file size using average bitrate heuristic.
+ * Formula: duration = (bytes * 8) / bitrate_bps
+ */
+function estimateVideoDuration(fileSizeBytes: number): number {
+  return Math.ceil((fileSizeBytes * 8) / AVERAGE_VIDEO_BITRATE_BPS);
+}
+
+interface QuotaError {
+  message: string;
+  available: number;
+}
 
 interface FileItem {
   id: string;
@@ -77,6 +93,7 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [quotaError, setQuotaError] = useState<QuotaError | null>(null);
 
   const fetchFiles = useCallback(async () => {
     try {
@@ -106,6 +123,8 @@ export default function ProjectsPage() {
 
   const handleFileAccepted = async (accepted: AcceptedFile) => {
     setIsUploading(true);
+    setError(null);
+    setQuotaError(null);
     try {
       const fileType =
         accepted.type === "subtitle"
@@ -113,6 +132,12 @@ export default function ProjectsPage() {
             ? "vtt"
             : "srt"
           : "video";
+
+      // Estimate video duration from file size to pre-check quota
+      const estimatedDuration =
+        accepted.type === "video"
+          ? estimateVideoDuration(accepted.file.size)
+          : undefined;
 
       const response = await fetch("/api/files", {
         method: "POST",
@@ -122,11 +147,20 @@ export default function ProjectsPage() {
           type: fileType,
           size: accepted.file.size,
           mimeType: accepted.file.type,
+          ...(estimatedDuration !== undefined && { estimatedDuration }),
         }),
       });
 
       if (!response.ok) {
         const data = await response.json();
+        // Specific handling for quota exceeded (402)
+        if (response.status === 402 && data.code === "QUOTA_EXCEEDED") {
+          setQuotaError({
+            message: data.error || "Quota insuffisant pour ce fichier.",
+            available: data.available ?? 0,
+          });
+          return;
+        }
         throw new Error(data.error || "Erreur lors de la création du fichier");
       }
 
@@ -198,7 +232,37 @@ export default function ProjectsPage() {
         </CardContent>
       </Card>
 
-      {/* Error message */}
+      {/* Quota exceeded message with upgrade CTA */}
+      {quotaError && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <Zap className="h-5 w-5 flex-shrink-0 text-amber-600 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-900">
+                Quota insuffisant
+              </p>
+              <p className="mt-1 text-sm text-amber-800">
+                {quotaError.message}
+              </p>
+              {quotaError.available === 0 && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Vous n&apos;avez plus de minutes disponibles ce mois-ci.
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              className="flex-shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={() => router.push("/pricing")}
+            >
+              <Zap className="h-3.5 w-3.5 mr-1" />
+              Passer Pro
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Generic error message */}
       {error && (
         <div className="mb-6 flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
