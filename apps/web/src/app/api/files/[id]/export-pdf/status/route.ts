@@ -99,9 +99,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Still processing
+    // Guardrail: if a job stays in waiting too long, worker is likely unavailable.
+    // jobId format: pdf-{fileId}-{timestamp}
+    const parsedTimestamp = Number(jobId.split("-").pop());
+    const hasValidTimestamp = Number.isFinite(parsedTimestamp);
+    const jobAgeMs = hasValidTimestamp ? Date.now() - parsedTimestamp : null;
+
+    if (jobStatus.status === "waiting" && jobAgeMs !== null && jobAgeMs > 90_000) {
+      return NextResponse.json({
+        status: "failed",
+        error: "Le worker PDF ne repond pas. Reessayez dans quelques instants.",
+      });
+    }
+
+    // Still processing: return the underlying queue state for client-side handling.
     return NextResponse.json({
-      status: "processing",
+      status: jobStatus.status,
       progress: jobStatus.progress || 0,
     });
   } catch (error) {

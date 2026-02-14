@@ -75,6 +75,99 @@ export function ExportModal({
     document.body.removeChild(a);
   }, [fileId, format, baseName]);
 
+  // Helper to download file from URL
+  const downloadFile = (url: string, filename: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Poll PDF generation status
+  const pollPdfStatus = useCallback(
+    async (jobId: string) => {
+      const maxAttempts = 60; // 2 minutes max
+      const pollInterval = 2000; // 2 seconds
+      let waitingAttempts = 0;
+      let stalledAttempts = 0;
+      let lastProgress = -1;
+
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+        try {
+          const response = await fetch(
+            `/api/files/${fileId}/export-pdf/status?jobId=${jobId}`
+          );
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Erreur lors de la verification du statut");
+          }
+
+          if (data.status === "completed") {
+            if (data.zipUrl) {
+              downloadFile(data.zipUrl, `${baseName}_export.zip`);
+            } else if (data.pdfUrl) {
+              downloadFile(data.pdfUrl, `${baseName}_preuves.pdf`);
+              setTimeout(() => downloadSubtitle(), 500);
+            }
+            setStatus("ready");
+            setTimeout(() => handleOpenChange(false), 1500);
+            return;
+          }
+
+          if (data.status === "failed") {
+            throw new Error(data.error || "La generation du PDF a echoue");
+          }
+
+          if (data.status === "unknown") {
+            throw new Error(data.error || "Job d'export introuvable");
+          }
+
+          if (data.status === "waiting") {
+            waitingAttempts += 1;
+            if (waitingAttempts >= 20) {
+              throw new Error(
+                "Le worker PDF ne demarre pas. Verifiez le service workers et reessayez."
+              );
+            }
+          } else {
+            waitingAttempts = 0;
+          }
+
+          if (data.status === "active") {
+            const progress = typeof data.progress === "number" ? data.progress : 0;
+            if (progress <= lastProgress) {
+              stalledAttempts += 1;
+            } else {
+              stalledAttempts = 0;
+              lastProgress = progress;
+            }
+
+            if (stalledAttempts >= 30) {
+              throw new Error("Generation PDF bloquee. Veuillez reessayer.");
+            }
+          } else {
+            stalledAttempts = 0;
+          }
+
+          if (!["processing", "waiting", "active"].includes(data.status)) {
+            throw new Error(data.error || "Statut d'export inattendu");
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+          throw err;
+        }
+      }
+
+      throw new Error("Delai depasse pour la generation du PDF");
+    },
+    [fileId, baseName, downloadSubtitle, handleOpenChange]
+  );
+
   // Handle export with optional PDF
   const handleExport = useCallback(async () => {
     setError(null);
@@ -98,14 +191,13 @@ export function ExportModal({
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || "Erreur lors de la génération");
+        throw new Error(data.error || "Erreur lors de la generation");
       }
 
       const data = await response.json();
 
       // Poll for PDF status if needed
       if (data.status === "processing") {
-        // Start polling
         await pollPdfStatus(data.jobId);
       } else if (data.zipUrl) {
         // Direct download ZIP
@@ -124,57 +216,7 @@ export function ExportModal({
       setError(err instanceof Error ? err.message : "Erreur lors de l'export");
       setStatus("error");
     }
-  }, [fileId, format, includePdf, baseName, downloadSubtitle, handleOpenChange]);
-
-  // Poll PDF generation status
-  const pollPdfStatus = useCallback(
-    async (jobId: string) => {
-      const maxAttempts = 60; // 2 minutes max
-      const pollInterval = 2000; // 2 seconds
-
-      for (let i = 0; i < maxAttempts; i++) {
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
-        try {
-          const response = await fetch(
-            `/api/files/${fileId}/export-pdf/status?jobId=${jobId}`
-          );
-          const data = await response.json();
-
-          if (data.status === "completed") {
-            if (data.zipUrl) {
-              downloadFile(data.zipUrl, `${baseName}_export.zip`);
-            } else if (data.pdfUrl) {
-              downloadFile(data.pdfUrl, `${baseName}_preuves.pdf`);
-              setTimeout(() => downloadSubtitle(), 500);
-            }
-            setStatus("ready");
-            setTimeout(() => handleOpenChange(false), 1500);
-            return;
-          } else if (data.status === "failed") {
-            throw new Error(data.error || "La génération du PDF a échoué");
-          }
-          // Continue polling if still processing
-        } catch (err) {
-          console.error("Polling error:", err);
-          throw err;
-        }
-      }
-
-      throw new Error("Délai dépassé pour la génération du PDF");
-    },
-    [fileId, baseName, downloadSubtitle, handleOpenChange]
-  );
-
-  // Helper to download file from URL
-  const downloadFile = (url: string, filename: string) => {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
+  }, [fileId, format, includePdf, baseName, downloadSubtitle, handleOpenChange, pollPdfStatus]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -182,7 +224,7 @@ export function ExportModal({
         <DialogHeader>
           <DialogTitle>Exporter</DialogTitle>
           <DialogDescription>
-            Téléchargez vos sous-titres et le dossier de preuves PDF.
+            Telechargez vos sous-titres et le dossier de preuves PDF.
           </DialogDescription>
         </DialogHeader>
 
@@ -256,7 +298,7 @@ export function ExportModal({
                 <div>
                   <div className="font-medium">VTT</div>
                   <div className="text-sm text-muted-foreground">
-                    Format web, idéal pour les vidéos HTML5
+                    Format web, ideal pour les videos HTML5
                   </div>
                 </div>
               </label>
@@ -281,10 +323,10 @@ export function ExportModal({
               />
               <div className="flex-1">
                 <div className="font-medium">
-                  Générer le dossier de preuves PDF
+                  Generer le dossier de preuves PDF
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Document avec score SME, alertes et métadonnées pour votre client
+                  Document avec score SME, alertes et metadonnees pour votre client
                 </div>
               </div>
             </label>
@@ -300,7 +342,7 @@ export function ExportModal({
           {/* Success message */}
           {status === "ready" && (
             <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-              Export réussi ! Téléchargement en cours...
+              Export reussi. Telechargement en cours...
             </div>
           )}
         </div>
@@ -336,7 +378,7 @@ export function ExportModal({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                Génération en cours...
+                Generation en cours...
               </>
             ) : (
               <>
@@ -354,7 +396,7 @@ export function ExportModal({
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                   />
                 </svg>
-                Télécharger
+                Telecharger
               </>
             )}
           </Button>
