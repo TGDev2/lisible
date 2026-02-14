@@ -167,11 +167,11 @@ async function processPDFJob(job: Job<PDFJobData>): Promise<PDFJobResult> {
 
   await job.updateProgress(70);
 
-  const timestamp = Date.now();
   const baseName = file.originalName.replace(/\.[^/.]+$/, '');
 
   // 9. Upload PDF to S3
-  const storageKey = `pdfs/${userId}/${fileId}/${baseName}_preuves_${timestamp}.pdf`;
+  // Stable key by file: overwrite previous proof file instead of creating timestamped duplicates.
+  const storageKey = `pdfs/${userId}/${fileId}/${baseName}_preuves.pdf`;
   console.log(`[PDF] Uploading PDF to S3: ${storageKey}`);
   await uploadObject(storageKey, pdfBuffer, 'application/pdf');
 
@@ -204,7 +204,8 @@ async function processPDFJob(job: Job<PDFJobData>): Promise<PDFJobResult> {
     await job.updateProgress(90);
 
     // Upload ZIP to S3
-    zipStorageKey = `exports/${userId}/${fileId}/${baseName}_export_${timestamp}.zip`;
+    // Keep one ZIP per subtitle format to avoid duplicate objects for the same export type.
+    zipStorageKey = `exports/${userId}/${fileId}/${baseName}_${subtitleFormat}_export.zip`;
     console.log(`[PDF] Uploading ZIP to S3: ${zipStorageKey}`);
     await uploadObject(zipStorageKey, zipBuffer, 'application/zip');
 

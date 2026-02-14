@@ -59,7 +59,7 @@ type RouteParams = {
 /**
  * GET /api/files/[id]/status
  * Get file processing status for real-time progress tracking
- * Designed for polling (2s interval recommended)
+ * Designed for polling (5s interval recommended)
  */
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {

@@ -6,9 +6,10 @@ import type { FileStatusResponse, ProcessingStage } from "@/app/api/files/[id]/s
 export type { FileStatusResponse, ProcessingStage };
 
 /**
- * Polling interval in milliseconds (2 seconds as per requirement)
+ * Polling interval in milliseconds.
+ * 5s keeps UI responsive while reducing API/Redis load.
  */
-const POLLING_INTERVAL = 2000;
+const POLLING_INTERVAL = 5000;
 
 /**
  * Stages that indicate processing is complete (stop polling)

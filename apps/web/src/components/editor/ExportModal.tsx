@@ -88,10 +88,15 @@ export function ExportModal({
   // Poll PDF generation status
   const pollPdfStatus = useCallback(
     async (jobId: string) => {
-      const maxAttempts = 150; // 5 minutes max
-      const pollInterval = 2000; // 2 seconds
+      const maxAttempts = 120; // ~8 minutes max with progressive backoff
+      const getPollInterval = (attempt: number): number => {
+        if (attempt < 10) return 2000;
+        if (attempt < 40) return 4000;
+        return 6000;
+      };
 
       for (let i = 0; i < maxAttempts; i++) {
+        const pollInterval = getPollInterval(i);
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
         try {

@@ -10,24 +10,50 @@ import {
 
 // Track all workers for graceful shutdown
 const workers: Worker[] = [];
+const DEFAULT_WORKER_QUEUES = [QUEUE_NAMES.STT, QUEUE_NAMES.SME, QUEUE_NAMES.PDF];
+
+function getEnabledQueues(): Set<string> {
+  const rawQueues = process.env.WORKER_QUEUES ?? DEFAULT_WORKER_QUEUES.join(',');
+  return new Set(
+    rawQueues
+      .split(',')
+      .map((q) => q.trim())
+      .filter(Boolean)
+  );
+}
 
 async function startWorkers(): Promise<void> {
+  const enabledQueues = getEnabledQueues();
+
   console.log('='.repeat(50));
   console.log('Starting SME Studio Workers...');
+  console.log(`[WORKER] Enabled queues: ${Array.from(enabledQueues).join(', ')}`);
   console.log('='.repeat(50));
 
-  // Create and register all workers
-  const sttWorker = createSTTWorker();
-  const smeWorker = createSMEWorker();
-  const pdfWorker = createPDFWorker();
-  const cleanupWorker = createCleanupWorker();
+  if (enabledQueues.has(QUEUE_NAMES.STT)) {
+    workers.push(createSTTWorker());
+    console.log(`[WORKER] Started ${QUEUE_NAMES.STT} worker (concurrency: 2)`);
+  }
 
-  workers.push(sttWorker, smeWorker, pdfWorker, cleanupWorker);
+  if (enabledQueues.has(QUEUE_NAMES.SME)) {
+    workers.push(createSMEWorker());
+    console.log(`[WORKER] Started ${QUEUE_NAMES.SME} worker (concurrency: 5)`);
+  }
 
-  console.log(`[WORKER] Started ${QUEUE_NAMES.STT} worker (concurrency: 2)`);
-  console.log(`[WORKER] Started ${QUEUE_NAMES.SME} worker (concurrency: 5)`);
-  console.log(`[WORKER] Started ${QUEUE_NAMES.PDF} worker (concurrency: 3)`);
-  console.log(`[WORKER] Started ${QUEUE_NAMES.CLEANUP} worker (concurrency: 1)`);
+  if (enabledQueues.has(QUEUE_NAMES.PDF)) {
+    workers.push(createPDFWorker());
+    console.log(`[WORKER] Started ${QUEUE_NAMES.PDF} worker (concurrency: 3)`);
+  }
+
+  if (enabledQueues.has(QUEUE_NAMES.CLEANUP)) {
+    workers.push(createCleanupWorker());
+    console.log(`[WORKER] Started ${QUEUE_NAMES.CLEANUP} worker (concurrency: 1)`);
+  }
+
+  if (workers.length === 0) {
+    throw new Error('No workers enabled. Set WORKER_QUEUES to at least one queue name.');
+  }
+
   console.log('='.repeat(50));
   console.log('All workers running. Press Ctrl+C to stop.');
   console.log('='.repeat(50));

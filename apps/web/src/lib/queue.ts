@@ -52,6 +52,7 @@ function getRedisConnection(): ConnectionOptions {
 let _sttQueue: Queue<STTJobData> | null = null;
 let _smeQueue: Queue<SMEJobData> | null = null;
 let _pdfQueue: Queue<PDFJobData> | null = null;
+const RECENT_PDF_JOB_REUSE_MS = 2 * 60 * 1000;
 
 function getSTTQueue(): Queue<STTJobData> {
   if (!_sttQueue) {
@@ -129,11 +130,52 @@ function getPDFQueue(): Queue<PDFJobData> {
   return _pdfQueue;
 }
 
+function isSamePDFPayload(a: PDFJobData, b: PDFJobData): boolean {
+  return (
+    a.fileId === b.fileId &&
+    a.userId === b.userId &&
+    (a.subtitleFormat ?? null) === (b.subtitleFormat ?? null)
+  );
+}
+
+async function findExistingPDFJob(
+  queue: Queue<PDFJobData>,
+  data: PDFJobData
+): Promise<string | null> {
+  const [activeJobs, waitingJobs, delayedJobs, prioritizedJobs] = await Promise.all([
+    queue.getActive(0, 50),
+    queue.getWaiting(0, 50),
+    queue.getDelayed(0, 50),
+    queue.getPrioritized(0, 50),
+  ]);
+
+  const inFlightJobs = [...activeJobs, ...waitingJobs, ...delayedJobs, ...prioritizedJobs];
+  const existingInFlight = inFlightJobs.find((job) => isSamePDFPayload(job.data, data));
+  if (existingInFlight?.id) {
+    return String(existingInFlight.id);
+  }
+
+  // Reuse a very recent completed job to avoid duplicate exports from quick re-clicks/retries.
+  const completedJobs = await queue.getCompleted(0, 20);
+  const existingRecentCompleted = completedJobs.find((job) => {
+    if (!isSamePDFPayload(job.data, data)) return false;
+    if (!job.finishedOn) return false;
+    return Date.now() - job.finishedOn <= RECENT_PDF_JOB_REUSE_MS;
+  });
+
+  return existingRecentCompleted?.id ? String(existingRecentCompleted.id) : null;
+}
+
 /**
  * Enqueue a PDF generation job
  */
 export async function enqueuePDFJob(data: PDFJobData): Promise<string> {
   const queue = getPDFQueue();
+  const existingJobId = await findExistingPDFJob(queue, data);
+  if (existingJobId) {
+    return existingJobId;
+  }
+
   const jobId = `pdf-${data.fileId}-${Date.now()}`;
   const job = await queue.add("generate", data, {
     jobId,
