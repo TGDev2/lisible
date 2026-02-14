@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSegmentsStore, useHistoryStore } from "@/stores";
 import { useSegmentEdit, useUndoRedo, useCurrentSegment } from "@/hooks";
-import { EditorHeader, SegmentList, VideoPlayer, SubtitleOverlay } from "@/components/editor";
+import { EditorHeader, SegmentList, VideoPlayer, SubtitleOverlay, ExportModal } from "@/components/editor";
 import type { Alert, Segment } from "@sme-studio/db";
 
 interface SegmentWithAlerts extends Segment {
@@ -40,6 +40,7 @@ export default function EditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [isSplitting, setIsSplitting] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Video playback state for subtitle synchronization
   const [currentTime, setCurrentTime] = useState(0);
@@ -196,8 +197,7 @@ export default function EditorPage() {
 
   // Handle export
   const handleExport = () => {
-    // Will be implemented with export modal
-    console.log("Export clicked");
+    setIsExportModalOpen(true);
   };
 
   // Handle merge segments
@@ -355,6 +355,13 @@ export default function EditorPage() {
         isRecalculating={isRecalculating}
         onBack={handleBack}
         onExport={handleExport}
+      />
+
+      <ExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        fileId={fileData.id}
+        fileName={fileData.originalName}
       />
 
       {/* Score change notification (optional inline feedback) */}
