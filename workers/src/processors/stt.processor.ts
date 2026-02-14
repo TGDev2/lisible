@@ -1,7 +1,6 @@
 import { type Job, Worker } from 'bullmq';
 import { redisConnection, QUEUE_NAMES, workerConfigs } from '../config';
-import type { STTJobData, STTJobResult } from '../queues';
-import { smeQueue } from '../queues';
+import { getSMEQueue, type STTJobData, type STTJobResult } from '../queues';
 
 // Storage
 import { downloadObjectAsBuffer, uploadObject, deleteObject } from '../lib/storage';
@@ -197,7 +196,7 @@ async function processSTTJob(job: Job<STTJobData>): Promise<STTJobResult> {
 
     // Step 11: Enqueue SME analysis job
     console.log(`[STT] Enqueuing SME analysis job...`);
-    await smeQueue.add(
+    await getSMEQueue().add(
       'analyze',
       {
         fileId,

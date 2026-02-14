@@ -65,16 +65,54 @@ function createQueue<TData>(name: QueueName): Queue<TData> {
   });
 }
 
-// Export queue instances
-export const sttQueue = createQueue<STTJobData>(QUEUE_NAMES.STT);
-export const smeQueue = createQueue<SMEJobData>(QUEUE_NAMES.SME);
-export const pdfQueue = createQueue<PDFJobData>(QUEUE_NAMES.PDF);
-export const cleanupQueue = createQueue<CleanupJobData>(QUEUE_NAMES.CLEANUP);
+let _sttQueue: Queue<STTJobData> | null = null;
+let _smeQueue: Queue<SMEJobData> | null = null;
+let _pdfQueue: Queue<PDFJobData> | null = null;
+let _cleanupQueue: Queue<CleanupJobData> | null = null;
 
-// Helper to get all queues for management
-export const allQueues = [sttQueue, smeQueue, pdfQueue, cleanupQueue] as const;
+export function getSTTQueue(): Queue<STTJobData> {
+  if (!_sttQueue) {
+    _sttQueue = createQueue<STTJobData>(QUEUE_NAMES.STT);
+  }
+  return _sttQueue;
+}
+
+export function getSMEQueue(): Queue<SMEJobData> {
+  if (!_smeQueue) {
+    _smeQueue = createQueue<SMEJobData>(QUEUE_NAMES.SME);
+  }
+  return _smeQueue;
+}
+
+export function getPDFQueue(): Queue<PDFJobData> {
+  if (!_pdfQueue) {
+    _pdfQueue = createQueue<PDFJobData>(QUEUE_NAMES.PDF);
+  }
+  return _pdfQueue;
+}
+
+export function getCleanupQueue(): Queue<CleanupJobData> {
+  if (!_cleanupQueue) {
+    _cleanupQueue = createQueue<CleanupJobData>(QUEUE_NAMES.CLEANUP);
+  }
+  return _cleanupQueue;
+}
+
+function getOpenQueues() {
+  const queues = [_sttQueue, _smeQueue, _pdfQueue, _cleanupQueue] as Array<
+    Queue<STTJobData> | Queue<SMEJobData> | Queue<PDFJobData> | Queue<CleanupJobData> | null
+  >;
+
+  return queues.filter(
+    (queue): queue is Exclude<(typeof queues)[number], null> => queue !== null
+  );
+}
 
 // Graceful shutdown helper
 export async function closeAllQueues(): Promise<void> {
-  await Promise.all(allQueues.map((queue) => queue.close()));
+  await Promise.all(getOpenQueues().map((queue) => queue.close()));
+  _sttQueue = null;
+  _smeQueue = null;
+  _pdfQueue = null;
+  _cleanupQueue = null;
 }

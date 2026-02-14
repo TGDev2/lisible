@@ -13,7 +13,7 @@
  */
 import { type Job, Worker, QueueEvents } from 'bullmq';
 import { redisConnection, QUEUE_NAMES } from './config';
-import { smeQueue, type SMEJobData, type SMEJobResult } from './queues';
+import { getSMEQueue, type SMEJobData, type SMEJobResult } from './queues';
 
 async function runTest(): Promise<void> {
   console.log('='.repeat(50));
@@ -66,6 +66,7 @@ async function runTest(): Promise<void> {
     storageKey: 'test/path/to/file.srt',
   };
 
+  const smeQueue = getSMEQueue();
   const job = await smeQueue.add('test-sme-analysis', testJobData, {
     removeOnComplete: true,
     removeOnFail: false,

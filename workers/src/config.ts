@@ -36,6 +36,13 @@ export const QUEUE_NAMES = {
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
+const WORKER_IDLE_TUNING: Pick<WorkerOptions, 'drainDelay' | 'stalledInterval'> = {
+  // Reduce Redis command churn while queues are idle.
+  // New jobs still wake workers immediately via blocking pop.
+  drainDelay: 30,
+  stalledInterval: 120_000,
+};
+
 // Queue configurations with retry and backoff settings
 export const queueConfigs: Record<QueueName, QueueOptions['defaultJobOptions']> = {
   [QUEUE_NAMES.STT]: {
@@ -81,17 +88,21 @@ export const workerConfigs: Record<QueueName, Partial<WorkerOptions>> = {
   [QUEUE_NAMES.STT]: {
     concurrency: 2, // Limited by STT API cost
     lockDuration: 15 * 60 * 1000, // 15 minutes timeout
+    ...WORKER_IDLE_TUNING,
   },
   [QUEUE_NAMES.SME]: {
     concurrency: 5, // CPU-bound, fast
     lockDuration: 30 * 1000, // 30 seconds timeout
+    ...WORKER_IDLE_TUNING,
   },
   [QUEUE_NAMES.PDF]: {
     concurrency: 3,
     lockDuration: 2 * 60 * 1000, // 2 minutes timeout
+    ...WORKER_IDLE_TUNING,
   },
   [QUEUE_NAMES.CLEANUP]: {
     concurrency: 1,
     lockDuration: 5 * 60 * 1000, // 5 minutes timeout
+    ...WORKER_IDLE_TUNING,
   },
 };
