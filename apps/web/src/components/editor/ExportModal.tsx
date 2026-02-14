@@ -88,18 +88,16 @@ export function ExportModal({
   // Poll PDF generation status
   const pollPdfStatus = useCallback(
     async (jobId: string) => {
-      const maxAttempts = 60; // 2 minutes max
+      const maxAttempts = 150; // 5 minutes max
       const pollInterval = 2000; // 2 seconds
-      let waitingAttempts = 0;
-      let stalledAttempts = 0;
-      let lastProgress = -1;
 
       for (let i = 0; i < maxAttempts; i++) {
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
 
         try {
           const response = await fetch(
-            `/api/files/${fileId}/export-pdf/status?jobId=${jobId}`
+            `/api/files/${fileId}/export-pdf/status?jobId=${jobId}`,
+            { cache: "no-store" }
           );
           const data = await response.json();
 
@@ -125,33 +123,6 @@ export function ExportModal({
 
           if (data.status === "unknown") {
             throw new Error(data.error || "Job d'export introuvable");
-          }
-
-          if (data.status === "waiting") {
-            waitingAttempts += 1;
-            if (waitingAttempts >= 20) {
-              throw new Error(
-                "Le worker PDF ne demarre pas. Verifiez le service workers et reessayez."
-              );
-            }
-          } else {
-            waitingAttempts = 0;
-          }
-
-          if (data.status === "active") {
-            const progress = typeof data.progress === "number" ? data.progress : 0;
-            if (progress <= lastProgress) {
-              stalledAttempts += 1;
-            } else {
-              stalledAttempts = 0;
-              lastProgress = progress;
-            }
-
-            if (stalledAttempts >= 30) {
-              throw new Error("Generation PDF bloquee. Veuillez reessayer.");
-            }
-          } else {
-            stalledAttempts = 0;
           }
 
           if (!["processing", "waiting", "active"].includes(data.status)) {
