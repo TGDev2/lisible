@@ -12,6 +12,8 @@ import {
   eq,
 } from "@sme-studio/db";
 
+export const dynamic = "force-dynamic";
+
 // 24 hours in seconds
 const EXPORT_URL_EXPIRATION = 86400;
 
