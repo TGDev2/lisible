@@ -38,12 +38,16 @@ function getRedisConnection(): ConnectionOptions {
 
   const url = new URL(redisUrl);
 
+  if (url.protocol !== "rediss:") {
+    throw new Error("REDIS_URL must use rediss:// (TLS is required)");
+  }
+
   return {
     host: url.hostname,
     port: parseInt(url.port || "6379", 10),
     password: url.password || undefined,
     username: url.username || "default",
-    tls: url.protocol === "rediss:" ? {} : undefined,
+    tls: {},
     maxRetriesPerRequest: null,
   };
 }

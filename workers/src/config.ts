@@ -1,9 +1,20 @@
 import type { ConnectionOptions, QueueOptions, WorkerOptions } from 'bullmq';
 import dotenv from 'dotenv';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // Load environment variables
-dotenv.config({ path: '../.env' });
-dotenv.config({ path: '.env' });
+function loadEnvFile(filePath: string, override = false): void {
+  if (fs.existsSync(filePath)) {
+    dotenv.config({ path: filePath, override });
+  }
+}
+
+const projectRoot = path.resolve(__dirname, '..', '..');
+loadEnvFile(path.join(projectRoot, '.env'));
+loadEnvFile(path.join(projectRoot, '.env.local'), true);
+loadEnvFile(path.resolve(process.cwd(), '.env'));
+loadEnvFile(path.resolve(process.cwd(), '.env.local'), true);
 
 // Redis connection configuration for Upstash
 // Upstash requires TLS connection (rediss://)
@@ -16,13 +27,17 @@ if (!redisUrl) {
 // Parse Redis URL for connection options
 const url = new URL(redisUrl);
 
+if (url.protocol !== 'rediss:') {
+  throw new Error('REDIS_URL must use rediss:// (TLS is required)');
+}
+
 export const redisConnection: ConnectionOptions = {
   host: url.hostname,
   port: parseInt(url.port || '6379', 10),
   password: url.password || undefined,
   username: url.username || 'default',
   // TLS required for Upstash (rediss:// protocol)
-  tls: url.protocol === 'rediss:' ? {} : undefined,
+  tls: {},
   maxRetriesPerRequest: null, // Required for BullMQ
 };
 

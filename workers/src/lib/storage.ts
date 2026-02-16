@@ -140,12 +140,12 @@ export async function uploadObject(
 /**
  * Generate a signed URL for downloading a file
  * @param key - The object key (path) in the bucket
- * @param expiresIn - Expiration time in seconds (default: 24 hours)
+ * @param expiresIn - Expiration time in seconds (default: 1 hour)
  * @returns The signed URL
  */
 export async function getSignedUrl(
   key: string,
-  expiresIn: number = 24 * 60 * 60 // 24 hours default
+  expiresIn: number = 60 * 60 // 1 hour default
 ): Promise<string> {
   const input: GetObjectCommandInput = {
     Bucket: BUCKET,
