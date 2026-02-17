@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DropZone } from '@/components/upload/DropZone';
-import type { DropZoneProps } from '@/components/upload/DropZone';
 
 // Expose the internal onDrop via hoisted mock
 const { mockDropzoneState } = vi.hoisted(() => {

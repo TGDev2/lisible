@@ -75,15 +75,14 @@ function makeSegment(overrides: Partial<SegmentWithAlerts> = {}): SegmentWithAle
 }
 
 function setupStore(editingSegmentId: string | null = null) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  vi.mocked(useSegmentsStore).mockImplementation((selector: any) =>
-    selector({
+  const mockState = {
       editingSegmentId,
       startEditing: mockStartEditing,
       stopEditing: mockStopEditing,
       refreshAllAlerts: mockRefreshAllAlerts,
-    })
-  );
+    } as unknown as ReturnType<typeof useSegmentsStore.getState>;
+
+  vi.mocked(useSegmentsStore).mockImplementation((selector) => selector(mockState));
 }
 
 describe('SegmentRow', () => {
