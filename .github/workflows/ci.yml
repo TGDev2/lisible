@@ -98,8 +98,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      wsproxy:
+        image: ghcr.io/neondatabase/wsproxy:latest
+        env:
+          ALLOW_ADDR_REGEX: .*
+        ports:
+          - 5434:80
     env:
-      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/sme_studio_test
+      TEST_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sme_studio_test
+      NEON_WS_PROXY: 127.0.0.1:5434/v1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -110,7 +117,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies

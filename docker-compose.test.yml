@@ -1,7 +1,8 @@
 # Docker Compose for integration tests (E10-S3)
 # Usage: docker compose -f docker-compose.test.yml up -d
-# Provides an isolated Postgres instance on port 5433
-# Set TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/sme_studio_test
+# Provides Postgres (5433) + Neon wsproxy (5434)
+# Set TEST_DATABASE_URL=postgresql://postgres:postgres@postgres-test:5432/sme_studio_test
+# Set NEON_WS_PROXY=127.0.0.1:5434/v1
 
 services:
   postgres-test:
@@ -20,3 +21,14 @@ services:
       retries: 5
     tmpfs:
       - /var/lib/postgresql/data  # In-memory for speed in CI
+
+  wsproxy-test:
+    image: ghcr.io/neondatabase/wsproxy:latest
+    container_name: sme-studio-wsproxy-test
+    environment:
+      ALLOW_ADDR_REGEX: .*
+    ports:
+      - '5434:80'
+    depends_on:
+      postgres-test:
+        condition: service_healthy

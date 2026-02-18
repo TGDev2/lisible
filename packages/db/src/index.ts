@@ -1,18 +1,42 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { neon, neonConfig } from "@neondatabase/serverless";
+import { drizzle as drizzleHttp } from "drizzle-orm/neon-http";
+import { drizzle as drizzleWs } from "drizzle-orm/neon-serverless";
 import * as schema from "./schema";
 
 // Re-export schema
 export * from "./schema";
 
+const isNeonWsDriverEnabled = () => process.env.DATABASE_DRIVER === "neon-ws";
+
+const configureNeonWebSocketDriver = () => {
+  if (process.env.NEON_WS_PROXY) {
+    neonConfig.wsProxy = process.env.NEON_WS_PROXY;
+  }
+
+  if (process.env.NEON_USE_SECURE_WEBSOCKET === "false") {
+    neonConfig.useSecureWebSocket = false;
+  }
+
+  if (process.env.NEON_PIPELINE_CONNECT === "false") {
+    neonConfig.pipelineConnect = false;
+  }
+};
+
+type Database = ReturnType<typeof drizzleHttp<typeof schema>>;
+
 // Create database connection
 export function createDb(connectionString: string) {
+  if (isNeonWsDriverEnabled()) {
+    configureNeonWebSocketDriver();
+    return drizzleWs(connectionString, { schema }) as unknown as Database;
+  }
+
   const sql = neon(connectionString);
-  return drizzle(sql, { schema });
+  return drizzleHttp(sql, { schema });
 }
 
 // Type for the database instance
-export type Database = ReturnType<typeof createDb>;
+export type { Database };
 
 // Singleton pattern for database connection
 let _db: Database | null = null;
