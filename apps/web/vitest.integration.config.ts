@@ -22,6 +22,15 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@sme-studio/db': path.resolve(__dirname, '../../packages/db/src/index.ts'),
+      '@sme-studio/subtitle-parser': path.resolve(
+        __dirname,
+        '../../packages/subtitle-parser/src/index.ts'
+      ),
+      '@sme-studio/sme-engine': path.resolve(
+        __dirname,
+        '../../packages/sme-engine/src/index.ts'
+      ),
     },
   },
 });
