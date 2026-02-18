@@ -53,8 +53,8 @@ export async function generateProofDocument(
   data: ProofDocumentData,
   options?: GenerateOptions
 ): Promise<Buffer> {
-  // Create the document element - cast to any to avoid @react-pdf type issues
-  const document = React.createElement(ProofDocument, { data, options }) as any;
+  // @react-pdf/renderer expects a generic React element as document input
+  const document = React.createElement(ProofDocument, { data, options }) as React.ReactElement;
   const buffer = await renderToBuffer(document);
   return Buffer.from(buffer);
 }
@@ -79,8 +79,8 @@ export async function generateProofDocumentStream(
   data: ProofDocumentData,
   options?: GenerateOptions
 ): Promise<NodeJS.ReadableStream> {
-  // Create the document element - cast to any to avoid @react-pdf type issues
-  const document = React.createElement(ProofDocument, { data, options }) as any;
+  // @react-pdf/renderer expects a generic React element as document input
+  const document = React.createElement(ProofDocument, { data, options }) as React.ReactElement;
   return renderToStream(document);
 }
 

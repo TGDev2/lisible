@@ -82,13 +82,13 @@ describe('validateProofDocumentData', () => {
 
   it('should throw if file is missing', () => {
     const data = createTestData();
-    (data as any).file = undefined;
+    (data as unknown as { file?: ProofDocumentData['file'] }).file = undefined;
     expect(() => validateProofDocumentData(data)).toThrow('File metadata is required');
   });
 
   it('should throw if file.originalName is missing', () => {
     const data = createTestData();
-    (data as any).file.originalName = '';
+    data.file.originalName = '';
     expect(() => validateProofDocumentData(data)).toThrow('File original name is required');
   });
 
@@ -108,19 +108,19 @@ describe('validateProofDocumentData', () => {
 
   it('should throw if breakdown is missing', () => {
     const data = createTestData();
-    (data as any).breakdown = undefined;
+    (data as unknown as { breakdown?: ProofDocumentData['breakdown'] }).breakdown = undefined;
     expect(() => validateProofDocumentData(data)).toThrow('Score breakdown is required');
   });
 
   it('should throw if alerts is not an array', () => {
     const data = createTestData();
-    (data as any).alerts = 'not an array';
+    (data as unknown as { alerts: unknown }).alerts = 'not an array';
     expect(() => validateProofDocumentData(data)).toThrow('Alerts must be an array');
   });
 
   it('should throw if userPlan is invalid', () => {
     const data = createTestData();
-    (data as any).userPlan = 'enterprise';
+    (data as unknown as { userPlan: string }).userPlan = 'enterprise';
     expect(() => validateProofDocumentData(data)).toThrow('User plan must be "free" or "pro"');
   });
 
