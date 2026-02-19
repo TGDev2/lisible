@@ -379,6 +379,9 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.30
+      '@vitest/coverage-v8':
+        specifier: ^1.6.1
+        version: 1.6.1(vitest@1.6.1(@types/node@20.19.30)(jsdom@25.0.1))
       tsx:
         specifier: ^4.0.0
         version: 4.21.0
