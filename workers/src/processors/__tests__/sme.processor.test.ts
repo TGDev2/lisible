@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+vi.hoisted(() => {
+  if (!process.env.REDIS_URL) {
+    process.env.REDIS_URL = 'rediss://default:test-password@localhost:6379';
+  }
+});
 import type { SMEJobData } from '../../queues';
 import {
   createMockJob,
