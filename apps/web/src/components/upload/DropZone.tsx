@@ -37,6 +37,12 @@ const ACCEPTED_MIME_TYPES = {
   "video/quicktime": [".mov"],
 };
 
+const SUBTITLE_ONLY_MIME_TYPES = {
+  "text/plain": FILE_CONFIGS.subtitle.extensions,
+  "text/vtt": [".vtt"],
+  "application/x-subrip": [".srt"],
+};
+
 export type DropZoneState = "idle" | "dragover" | "uploading" | "error";
 
 export interface AcceptedFile {
@@ -68,6 +74,8 @@ export interface DropZoneProps {
   uploadProgress?: UploadProgressInfo;
   disabled?: boolean;
   className?: string;
+  /** Restrict to SRT/VTT files only (no video) */
+  subtitleOnly?: boolean;
 }
 
 function formatFileSize(bytes: number): string {
@@ -135,6 +143,7 @@ export function DropZone({
   uploadProgress,
   disabled = false,
   className,
+  subtitleOnly = false,
 }: DropZoneProps) {
   const [internalState, setInternalState] = useState<DropZoneState>("idle");
   const [selectedFile, setSelectedFile] = useState<AcceptedFile | null>(null);
@@ -157,16 +166,20 @@ export function DropZone({
     [onError]
   );
 
+  const formatLabel = subtitleOnly
+    ? "Formats acceptés : SRT, VTT"
+    : `Format non supporté. Formats acceptés : ${ACCEPTED_EXTENSIONS.join(", ")}`;
+
   const processFile = useCallback(
     async (file: File) => {
       const extension = getFileExtension(file.name);
       const fileType = getFileType(extension);
 
-      // Validate extension
-      if (!fileType) {
+      // Validate extension (and reject video when subtitleOnly)
+      if (!fileType || (subtitleOnly && fileType !== "subtitle")) {
         handleError({
           code: "invalid-extension",
-          message: `Format non supporté. Formats acceptés : ${ACCEPTED_EXTENSIONS.join(", ")}`,
+          message: formatLabel,
         });
         return;
       }
@@ -207,7 +220,7 @@ export function DropZone({
       setInternalState("idle");
       onFileAccepted(acceptedFile);
     },
-    [handleError, onFileAccepted]
+    [handleError, onFileAccepted, subtitleOnly, formatLabel]
   );
 
   const onDrop = useCallback(
@@ -226,7 +239,7 @@ export function DropZone({
           } else if (errorCode === "file-invalid-type") {
             handleError({
               code: "invalid-mime",
-              message: `Format non supporté. Formats acceptés : ${ACCEPTED_EXTENSIONS.join(", ")}`,
+              message: formatLabel,
             });
           }
         }
@@ -238,12 +251,12 @@ export function DropZone({
         await processFile(file);
       }
     },
-    [handleError, processFile]
+    [formatLabel, handleError, processFile]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: ACCEPTED_MIME_TYPES,
+    accept: subtitleOnly ? SUBTITLE_ONLY_MIME_TYPES : ACCEPTED_MIME_TYPES,
     maxFiles: 1,
     disabled: disabled || currentState === "uploading",
     onDragEnter: () => setInternalState("dragover"),
@@ -373,10 +386,10 @@ export function DropZone({
               </p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Formats : .srt, .vtt, .mp4, .mov
+              {subtitleOnly ? "Formats : .srt, .vtt" : "Formats : .srt, .vtt, .mp4, .mov"}
             </p>
             <p className="text-xs text-muted-foreground">
-              Max : 500 MB (vidéo), 10 MB (SRT/VTT)
+              {subtitleOnly ? "Max : 10 MB" : "Max : 500 MB (vidéo), 10 MB (SRT/VTT)"}
             </p>
           </div>
         )}
