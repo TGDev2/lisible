@@ -3,29 +3,17 @@
 import { useState, useCallback, useRef } from "react";
 import { DropZone, type AcceptedFile } from "@/components/upload/DropZone";
 import { ProgressBar } from "@/components/upload/ProgressBar";
-import { ScoreBadge } from "@/components/shared/ScoreBadge";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Loader2, RotateCcw, AlertTriangle } from "lucide-react";
+  DiagnosticReport,
+  type DiagnosticReportData,
+} from "@/components/shared/DiagnosticReport";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, AlertTriangle } from "lucide-react";
 
-interface DiagnosticResult {
+interface DiagnosticResult extends DiagnosticReportData {
   fileId: string;
   temporaryToken: string;
-  score: number;
-  breakdown: {
-    totalAlerts: number;
-    bySeverity: { critical: number; warning: number; info: number };
-    byRule: Record<string, { count: number; penalty: number }>;
-    totalPenalty: number;
-  };
-  fileName: string;
-  format: string;
-  segmentCount: number;
 }
 
 type PageState = "idle" | "uploading" | "result" | "error";
@@ -128,10 +116,7 @@ export default function DiagnosePage() {
 
           {/* DropZone (idle state) */}
           {state === "idle" && (
-            <DropZone
-              onFileAccepted={handleFileAccepted}
-              subtitleOnly
-            />
+            <DropZone onFileAccepted={handleFileAccepted} subtitleOnly />
           )}
 
           {/* Upload + Analysis in progress */}
@@ -164,65 +149,9 @@ export default function DiagnosePage() {
             </Card>
           )}
 
-          {/* Result */}
+          {/* Result — DiagnosticReport */}
           {state === "result" && result && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader className="text-center">
-                  <CardTitle>Résultat du diagnostic</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {result.fileName}
-                  </p>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center gap-6">
-                  <ScoreBadge
-                    score={result.score}
-                    size="lg"
-                    showDelta={false}
-                  />
-
-                  {/* Alerts breakdown by severity */}
-                  <div className="w-full grid grid-cols-3 gap-4 text-center">
-                    <div className="rounded-lg bg-red-50 p-3">
-                      <p className="text-2xl font-bold text-red-700">
-                        {result.breakdown.bySeverity.critical}
-                      </p>
-                      <p className="text-xs text-red-600">Critiques</p>
-                    </div>
-                    <div className="rounded-lg bg-yellow-50 p-3">
-                      <p className="text-2xl font-bold text-yellow-700">
-                        {result.breakdown.bySeverity.warning}
-                      </p>
-                      <p className="text-xs text-yellow-600">Avertissements</p>
-                    </div>
-                    <div className="rounded-lg bg-blue-50 p-3">
-                      <p className="text-2xl font-bold text-blue-700">
-                        {result.breakdown.bySeverity.info}
-                      </p>
-                      <p className="text-xs text-blue-600">Informations</p>
-                    </div>
-                  </div>
-
-                  {/* File stats */}
-                  <p className="text-sm text-muted-foreground text-center">
-                    {result.segmentCount} segments analysés — Format{" "}
-                    {result.format.toUpperCase()}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Actions */}
-              <div className="flex flex-col items-center gap-3">
-                <Button onClick={handleReset} variant="outline">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Nouveau diagnostic
-                </Button>
-                <p className="text-xs text-muted-foreground text-center max-w-sm">
-                  Inscrivez-vous pour accéder au détail des alertes, à
-                  l&apos;éditeur de correction et au dossier de preuves PDF.
-                </p>
-              </div>
-            </div>
+            <DiagnosticReport data={result} onReset={handleReset} />
           )}
 
           {/* Error */}

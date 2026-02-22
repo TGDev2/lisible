@@ -82,9 +82,45 @@ describe("POST /api/diagnostic/upload", () => {
     expect(body.breakdown.bySeverity).toHaveProperty("critical");
     expect(body.breakdown.bySeverity).toHaveProperty("warning");
     expect(body.breakdown.bySeverity).toHaveProperty("info");
+    expect(Array.isArray(body.topAlerts)).toBe(true);
+    expect(body.topAlerts.length).toBeLessThanOrEqual(3);
     expect(body.segmentCount).toBe(3);
     expect(body.format).toBe("srt");
     expect(body.fileName).toBe("test.srt");
+  });
+
+  it("orders top alerts by impact, not only by severity", async () => {
+    const { POST } = await import("@/app/api/diagnostic/upload/route");
+
+    const highImpactLengthWarnings = "a".repeat(90);
+    const speedCriticalText = "abcdefghijklmnopqrstuvwx";
+
+    const weightedSrt = `1
+00:00:01,000 --> 00:00:07,000
+${highImpactLengthWarnings}
+
+2
+00:00:08,000 --> 00:00:14,000
+${highImpactLengthWarnings}
+
+3
+00:00:15,000 --> 00:00:21,000
+${highImpactLengthWarnings}
+
+4
+00:00:22,000 --> 00:00:23,100
+${speedCriticalText}
+`;
+
+    const formData = makeFormData("weighted.srt", weightedSrt);
+    const request = makeDiagnosticRequest(formData);
+
+    const response = await POST(request as never);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.topAlerts[0].ruleCode).toBe("length");
+    expect(body.topAlerts[1].ruleCode).toBe("speed");
   });
 
   it("returns score for a valid VTT file", async () => {

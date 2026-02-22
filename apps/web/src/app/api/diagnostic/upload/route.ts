@@ -9,6 +9,8 @@ import {
   checkProperNouns,
   calculateScore,
   type AlertInput,
+  type AlertSeverity,
+  type RuleCode,
   type ScoreResult,
 } from "@sme-studio/sme-engine";
 import { checkAndRecordDiagnosticRateLimit } from "@/lib/rate-limit";
@@ -16,6 +18,27 @@ import { createDiagnosticTemporaryToken } from "@/lib/diagnostic-token";
 
 const ACCEPTED_EXTENSIONS = [".srt", ".vtt"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+export interface DiagnosticAlert {
+  ruleCode: RuleCode;
+  severity: AlertSeverity;
+  message: string;
+  count: number;
+}
+
+const RULE_LABELS: Record<RuleCode, string> = {
+  speed: "Vitesse de lecture excessive",
+  length: "Segments trop longs",
+  overlap: "Chevauchements temporels",
+  duration: "Durée d'affichage insuffisante",
+  proper_noun: "Noms propres à vérifier",
+};
+
+const SEVERITY_WEIGHT: Record<AlertSeverity, number> = {
+  critical: 10,
+  warning: 5,
+  info: 1,
+};
 
 function getClientIp(request: NextRequest): string {
   return (
@@ -26,7 +49,12 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
-function analyzeSegments(segments: Segment[]): ScoreResult {
+interface AnalysisResult {
+  scoreResult: ScoreResult;
+  topAlerts: DiagnosticAlert[];
+}
+
+function analyzeSegments(segments: Segment[]): AnalysisResult {
   const alerts: AlertInput[] = [];
 
   for (const segment of segments) {
@@ -62,7 +90,53 @@ function analyzeSegments(segments: Segment[]): ScoreResult {
     }
   }
 
-  return calculateScore(alerts);
+  const scoreResult = calculateScore(alerts);
+
+  // Build top alerts: aggregate by rule, pick highest severity per rule, sort by impact
+  const ruleAggregation = new Map<
+    RuleCode,
+    { severity: AlertSeverity; count: number; impact: number }
+  >();
+  for (const alert of alerts) {
+    const existing = ruleAggregation.get(alert.ruleCode);
+    if (!existing) {
+      ruleAggregation.set(alert.ruleCode, {
+        severity: alert.severity,
+        count: 1,
+        impact: SEVERITY_WEIGHT[alert.severity],
+      });
+    } else {
+      existing.count++;
+      existing.impact += SEVERITY_WEIGHT[alert.severity];
+      if (SEVERITY_WEIGHT[alert.severity] > SEVERITY_WEIGHT[existing.severity]) {
+        existing.severity = alert.severity;
+      }
+    }
+  }
+
+  const topAlerts: DiagnosticAlert[] = Array.from(ruleAggregation.entries())
+    .map(([ruleCode, { severity, count, impact }]) => ({
+      ruleCode,
+      severity,
+      message: RULE_LABELS[ruleCode],
+      count,
+      impact,
+    }))
+    .sort(
+      (a, b) =>
+        b.impact - a.impact ||
+        SEVERITY_WEIGHT[b.severity] - SEVERITY_WEIGHT[a.severity] ||
+        b.count - a.count
+    )
+    .slice(0, 3)
+    .map(({ ruleCode, severity, message, count }) => ({
+      ruleCode,
+      severity,
+      message,
+      count,
+    }));
+
+  return { scoreResult, topAlerts };
 }
 
 async function storeInRedis(
@@ -155,13 +229,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const scoreResult = analyzeSegments(parseResult.segments);
+    const { scoreResult, topAlerts } = analyzeSegments(parseResult.segments);
     const fileId = crypto.randomUUID();
     const temporaryToken = createDiagnosticTemporaryToken(fileId);
 
     const stored = await storeInRedis(fileId, {
       fileId,
       score: scoreResult,
+      topAlerts,
       fileName: file.name,
       format: parseResult.format,
       segmentCount: parseResult.segments.length,
@@ -182,6 +257,7 @@ export async function POST(request: NextRequest) {
       temporaryToken,
       score: scoreResult.score,
       breakdown: scoreResult.breakdown,
+      topAlerts,
       fileName: file.name,
       format: parseResult.format,
       segmentCount: parseResult.segments.length,

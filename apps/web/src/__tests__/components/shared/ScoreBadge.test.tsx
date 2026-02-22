@@ -40,6 +40,12 @@ describe('ScoreBadge', () => {
       expect(screen.getByText(/Excellent/)).toBeInTheDocument();
     });
 
+    it('applique un seuil Excellent personnalisé', () => {
+      render(<ScoreBadge score={94} excellentThreshold={95} />);
+      expect(screen.queryByText(/Excellent/)).not.toBeInTheDocument();
+      expect(screen.getByText(/Bon/)).toBeInTheDocument();
+    });
+
     it('affiche le score 70 comme Bon (seuil)', () => {
       render(<ScoreBadge score={70} />);
       expect(screen.getByText(/Bon/)).toBeInTheDocument();

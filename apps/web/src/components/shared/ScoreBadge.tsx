@@ -16,18 +16,23 @@ export interface ScoreBadgeProps {
   showDelta?: boolean;
   /** Additional className */
   className?: string;
+  /** Threshold for "Excellent" category (default: 90) */
+  excellentThreshold?: number;
 }
 
 /**
  * Get score category and styling
  */
-function getScoreCategory(score: number): {
+function getScoreCategory(
+  score: number,
+  excellentThreshold = 90
+): {
   label: string;
   bgColor: string;
   textColor: string;
   ringColor: string;
 } {
-  if (score >= 90) {
+  if (score >= excellentThreshold) {
     return {
       label: "Excellent",
       bgColor: "bg-green-100",
@@ -70,6 +75,7 @@ export function ScoreBadge({
   size = "md",
   showDelta = true,
   className,
+  excellentThreshold = 90,
 }: ScoreBadgeProps) {
   // Animation states
   const [isAnimating, setIsAnimating] = useState(false);
@@ -191,9 +197,12 @@ export function ScoreBadge({
     );
   }
 
-  const category = getScoreCategory(displayedScore);
+  const category = getScoreCategory(displayedScore, excellentThreshold);
   const scoreIncreased = delta !== null && delta > 0;
   const scoreDecreased = delta !== null && delta < 0;
+  const isExcellent = displayedScore >= excellentThreshold;
+  const isGood = displayedScore >= 70 && !isExcellent;
+  const isAverage = displayedScore >= 50 && !isGood && !isExcellent;
 
   return (
     <div className="relative inline-flex items-center">
@@ -218,13 +227,13 @@ export function ScoreBadge({
             size === "sm" && "w-4 h-4 text-[10px]",
             size === "md" && "w-5 h-5 text-xs",
             size === "lg" && "w-6 h-6 text-sm",
-            displayedScore >= 90 && "bg-green-500 text-white",
-            displayedScore >= 70 && displayedScore < 90 && "bg-yellow-500 text-white",
-            displayedScore >= 50 && displayedScore < 70 && "bg-orange-500 text-white",
-            displayedScore < 50 && "bg-red-500 text-white"
+            isExcellent && "bg-green-500 text-white",
+            isGood && "bg-yellow-500 text-white",
+            isAverage && "bg-orange-500 text-white",
+            !isExcellent && !isGood && !isAverage && "bg-red-500 text-white"
           )}
         >
-          {displayedScore >= 90 ? "✓" : displayedScore >= 70 ? "!" : displayedScore >= 50 ? "!" : "✕"}
+          {isExcellent ? "✓" : isGood ? "!" : isAverage ? "!" : "✕"}
         </span>
 
         {/* Score value */}
